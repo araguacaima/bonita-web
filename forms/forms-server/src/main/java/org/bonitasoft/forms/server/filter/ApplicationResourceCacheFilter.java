@@ -33,61 +33,63 @@ import javax.servlet.http.HttpServletResponse;
 
 /**
  * @author Haojie Yuan
- * 
+ *
  */
 public class ApplicationResourceCacheFilter implements Filter {
 
 	protected FilterConfig filterConfig = null;
 
 	protected HashMap expiresMap = new HashMap();
-	
+
 	/**
      * Logger
      */
     private static final Logger LOGGER = Logger.getLogger(ApplicationResourceCacheFilter.class.getName());
-	
+
 	/**
 	 * resource : indicate the path of the resource
 	 */
 	public static final String RESOURCE_PATH_PARAM = "location";
 
-	public void init(FilterConfig filterConfig) throws ServletException {
+	@Override
+    public void init(final FilterConfig filterConfig) throws ServletException {
 		this.filterConfig = filterConfig;
 		expiresMap.clear();
-		Enumeration names = filterConfig.getInitParameterNames();
+		final Enumeration names = filterConfig.getInitParameterNames();
 		while (names.hasMoreElements()) {
 			try {
 				final String name = (String) names.nextElement();
 				final String value = filterConfig.getInitParameter(name);
 				final Integer expire = Integer.valueOf(value);
 				expiresMap.put(name, expire);
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				LOGGER.log(Level.SEVERE, "Error while init the ApplicationResourceCacheFilter in session");
 				throw new ServletException(e);
 			}
 		}
 	}
 
-	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-		HttpServletRequest req = (HttpServletRequest) request;
-		HttpServletResponse res = (HttpServletResponse) response;
+	@Override
+    public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
+		final HttpServletRequest req = (HttpServletRequest) request;
+		final HttpServletResponse res = (HttpServletResponse) response;
 
 		String ext = null;
 		final String location = req.getParameter(RESOURCE_PATH_PARAM);
 		if (location.lastIndexOf(".css") != -1) {
-			int dot = location.lastIndexOf(".css");
+			final int dot = location.lastIndexOf(".css");
 			ext = location.substring(dot + 1, dot + 4);
 		} else if (location.lastIndexOf(".png") != -1) {
-			int dot = location.lastIndexOf(".png");
+			final int dot = location.lastIndexOf(".png");
 			ext = location.substring(dot + 1, dot + 4);
 		} else if (location.lastIndexOf(".gif") != -1) {
-			int dot = location.lastIndexOf(".gif");
+			final int dot = location.lastIndexOf(".gif");
 			ext = location.substring(dot + 1, dot + 4);
 		} else if (location.lastIndexOf(".jpg") != -1) {
-			int dot = location.lastIndexOf(".jpg");
+			final int dot = location.lastIndexOf(".jpg");
 			ext = location.substring(dot + 1, dot + 4);
 		} else if (location.lastIndexOf(".js") != -1) {
-			int dot = location.lastIndexOf(".js");
+			final int dot = location.lastIndexOf(".js");
 			ext = location.substring(dot + 1, dot + 3);
 		}
 
@@ -95,18 +97,19 @@ public class ApplicationResourceCacheFilter implements Filter {
 		chain.doFilter(req, res);
 	}
 
-	public void destroy() {
-		this.filterConfig = null;
+	@Override
+    public void destroy() {
+		filterConfig = null;
 	}
 
-	private void setResponseHeader(HttpServletResponse response, String ext) {
+	private void setResponseHeader(final HttpServletResponse response, final String ext) {
 		if (ext != null && ext.length() > 0) {
 			final Integer expires = (Integer) expiresMap.get(ext);
 			if (expires != null) {
 				if (expires.intValue() > 0) {
 					response.setHeader("Cache-Control", "max-age=" + expires.intValue()); // HTTP 1.1
 				} else {
-					response.setHeader("Cache-Control", "no-cache");
+                    response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
 					response.setHeader("Pragma", "no-cache"); // HTTP 1.0
 					response.setDateHeader("Expires", 0);
 				}
