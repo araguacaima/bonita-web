@@ -33,7 +33,7 @@ import java.util.logging.Logger;
  * @author Ruiheng Fan
  * 
  */
-public class ConnectorDefinitionAdapter implements ConnectorDefinition {
+public class ConnectorDefinitionAdapter extends ConnectorDefinition {
 
     private static Logger LOGGER = Logger.getLogger(ConnectorDefinitionAdapter.class.getName());
 
@@ -45,6 +45,7 @@ public class ConnectorDefinitionAdapter implements ConnectorDefinition {
     private Connector connector = null;
 
     public ConnectorDefinitionAdapter(final Connector connector) {
+        super(connector.getConnectorName(),connector.getConnectorId(),connector.getConnectorVersion(), ConnectorEvent.ON_ENTER);
         this.connector = connector;
     }
 
