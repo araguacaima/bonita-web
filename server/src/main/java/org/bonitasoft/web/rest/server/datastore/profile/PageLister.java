@@ -16,12 +16,12 @@
  */
 package org.bonitasoft.web.rest.server.datastore.profile;
 
-import static org.bonitasoft.web.toolkit.client.common.i18n.AbstractI18n.*;
+import static org.bonitasoft.web.toolkit.client.common.i18n.AbstractI18n._;
+
+import org.bonitasoft.web.rest.model.portal.profile.BonitaPageItem;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import org.bonitasoft.web.rest.model.portal.profile.BonitaPageItem;
 
 /**
  * @author Fabio Lombardi
@@ -51,7 +51,7 @@ public class PageLister {
         pages.add(new BonitaPageItem("applicationslistingadmin", _("Manage applications"), _("Manage applications"), _("Applications")));
         pages.add(new BonitaPageItem("monitoringadmin", _("Monitoring"), _("Monitoring"), _("Apps management")));
         pages.add(new BonitaPageItem("monitoringpm", _("Monitoring"), _("Monitoring"), _("Apps management")));
-    }
+    } 
 
     public List<BonitaPageItem> getPages() {
         return pages;
