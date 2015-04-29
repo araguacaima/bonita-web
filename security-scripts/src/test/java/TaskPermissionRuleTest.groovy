@@ -21,7 +21,7 @@ import org.bonitasoft.engine.api.Logger
 import org.bonitasoft.engine.api.ProcessAPI
 import org.bonitasoft.engine.api.permission.APICallContext
 import org.bonitasoft.engine.api.permission.PermissionRule
-import org.bonitasoft.engine.bpm.flownode.ActivityInstanceNotFoundException
+import org.bonitasoft.engine.bpm.flownode.ArchivedFlowNodeInstanceNotFoundException
 import org.bonitasoft.engine.bpm.flownode.ArchivedHumanTaskInstance
 import org.bonitasoft.engine.bpm.flownode.FlowNodeInstanceNotFoundException
 import org.bonitasoft.engine.bpm.flownode.UserTaskInstance
@@ -36,8 +36,6 @@ import org.mockito.Mock
 import org.mockito.runners.MockitoJUnitRunner
 
 import static org.assertj.core.api.Assertions.assertThat
-import static org.mockito.Matchers.any
-import static org.mockito.Matchers.eq
 import static org.mockito.Mockito.*
 
 @RunWith(MockitoJUnitRunner.class)
@@ -130,7 +128,7 @@ public class TaskPermissionRuleTest {
         havingResource("archivedElement")
         def archivedTask = mock(ArchivedHumanTaskInstance.class)
         doReturn(currentUserId).when(archivedTask).getAssigneeId()
-        doReturn(archivedTask).when(processAPI).getArchivedActivityInstance(458)
+        doReturn(archivedTask).when(processAPI).getArchivedFlowNodeInstance(458)
         //when
         def isAuthorized = rule.isAllowed(apiSession, apiCallContext, apiAccessor, logger)
         //then
@@ -143,7 +141,7 @@ public class TaskPermissionRuleTest {
         havingResource("archivedElement")
         def archivedTask = mock(ArchivedHumanTaskInstance.class)
         doReturn(58l).when(archivedTask).getAssigneeId()
-        doReturn(archivedTask).when(processAPI).getArchivedActivityInstance(458)
+        doReturn(archivedTask).when(processAPI).getArchivedFlowNodeInstance(458)
         //when
         def isAuthorized = rule.isAllowed(apiSession, apiCallContext, apiAccessor, logger)
         //then
@@ -154,7 +152,7 @@ public class TaskPermissionRuleTest {
     public void should_get_on_a_archived_task_is_not_found() {
         //given
         havingResource("archivedElement")
-        doThrow(new ActivityInstanceNotFoundException(458)).when(processAPI).getArchivedActivityInstance(458)
+        doThrow(new ArchivedFlowNodeInstanceNotFoundException(458)).when(processAPI).getArchivedFlowNodeInstance(458)
         //when
         def isAuthorized = rule.isAllowed(apiSession, apiCallContext, apiAccessor, logger)
         //then
