@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: bonita-bpm-new-features\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2014-10-10 02:03+0200\n"
-"PO-Revision-Date: 2015-05-21 10:22-0400\n"
+"PO-Revision-Date: 2015-05-26 02:54-0400\n"
 "Last-Translator: charlessouillard <rodrigue.legall@bonitasoft.com>\n"
 "Language-Team: French\n"
 "Language: fr_FR\n"
@@ -14,7 +14,7 @@ msgstr ""
 "X-Generator: crowdin.com\n"
 "X-Crowdin-Project: bonita-bpm-new-features\n"
 "X-Crowdin-Language: fr\n"
-"X-Crowdin-File: /master/bonita-web/portal/portal-js.po\n"
+"X-Crowdin-File: /BS-12832_application_theme/bonita-web/portal/portal-js.po\n"
 
 #: main/features/admin/monitoring/monitoring.html
 msgid "1 h."
@@ -443,7 +443,7 @@ msgid "Internal"
 msgstr "Interne"
 
 msgid "Items per page"
-msgstr "Eléments par page"
+msgstr "Éléments par page"
 
 #: main/features/admin/processes/details/information.html
 msgid "Last updated on"
