@@ -5,18 +5,17 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2.0 of the License, or
  * (at your option) any later version.
- *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 package org.bonitasoft.console.common.server.servlet;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
@@ -39,7 +38,6 @@ import org.bonitasoft.engine.session.APISession;
 
 /**
  * @author Anthony Birembaut
- *
  */
 public abstract class ResourceServlet extends HttpServlet {
 
@@ -59,16 +57,13 @@ public abstract class ResourceServlet extends HttpServlet {
     private final static String TENANT_PARAM = "tenant";
 
     /**
-     * file name
-     */
-    private final static String LOCATION_PARAM = "location";
-
-    /**
      * The engine API session param key name
      */
     public static final String API_SESSION_PARAM_KEY = "apiSession";
 
     protected abstract String getResourceParameterName();
+
+    protected abstract String getDefaultResourceName();
 
     protected abstract File getResourcesParentFolder(long tenantId);
 
@@ -77,14 +72,18 @@ public abstract class ResourceServlet extends HttpServlet {
      */
     protected abstract String getSubFolderName();
 
+    protected ResourceLocationReader resourceLocationReader = new ResourceLocationReader();
+
     /**
      * {@inheritDoc}
      */
     @Override
-    protected void doGet(final HttpServletRequest request, final HttpServletResponse response) throws ServletException {
-        final String resourceName = request.getParameter(getResourceParameterName());
-
-        final String fileName = request.getParameter(LOCATION_PARAM);
+    protected void doGet(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
+        final String fileName = resourceLocationReader.getResourceLocationFromRequest(request);
+        String resourceName = request.getParameter(getResourceParameterName());
+        if (resourceName == null) {
+            resourceName = getDefaultResourceName();
+        }
         try {
             getResourceFile(request, response, resourceName, fileName);
         } catch (final UnsupportedEncodingException e) {
@@ -97,19 +96,13 @@ public abstract class ResourceServlet extends HttpServlet {
     }
 
     /**
-     * Get resource file
+     * Get resource file.
      *
-     * @param request
-     * @param response
-     * @param resourceName
-     * @param fileName
      * @throws ServletException
      * @throws UnsupportedEncodingException
      */
     protected void getResourceFile(final HttpServletRequest request, final HttpServletResponse response, String resourceName, String fileName)
-            throws ServletException, UnsupportedEncodingException {
-        byte[] content = null;
-        String contentType = null;
+            throws ServletException, IOException {
         if (resourceName == null) {
             final String errorMessage = "Error while using the servlet to get a resource: the parameter " + getResourceParameterName() + " is null.";
             if (LOGGER.isLoggable(Level.WARNING)) {
@@ -118,7 +111,7 @@ public abstract class ResourceServlet extends HttpServlet {
             throw new ServletException(errorMessage);
         }
         if (fileName == null) {
-            final String errorMessage = "Error while using the servlet to get a resource: the parameter " + LOCATION_PARAM + " is null.";
+            final String errorMessage = "Error while using the servlet to get a resource: the parameter " + ResourceLocationReader.LOCATION_PARAM + " is null.";
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.log(Level.WARNING, errorMessage);
             }
@@ -136,7 +129,6 @@ public abstract class ResourceServlet extends HttpServlet {
         } else {
             subFolderSuffix = "";
         }
-
         try {
             final File resourceFolder = new File(resourcesParentFolder, resourceName + subFolderSuffix);
             final File file = new File(resourceFolder, fileName);
@@ -147,6 +139,10 @@ public abstract class ResourceServlet extends HttpServlet {
             if (!tenantFolder.isInFolder(file, resourceFolder)) {
                 throw new ServletException("For security reasons, access to this file paths" + file.getAbsolutePath() + " is restricted.");
             }
+
+            byte[] content;
+            String contentType;
+
             final String lowerCaseFileName = fileName.toLowerCase();
             if (lowerCaseFileName.endsWith(".jpg")) {
                 contentType = "image/jpeg";
@@ -189,6 +185,11 @@ public abstract class ResourceServlet extends HttpServlet {
             out.write(content, 0, content.length);
             response.flushBuffer();
             out.close();
+        } catch (FileNotFoundException e) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(Level.WARNING, e.getMessage());
+            }
+            response.sendError(404);
         } catch (final IOException e) {
             if (LOGGER.isLoggable(Level.SEVERE)) {
                 LOGGER.log(Level.SEVERE, "Error while generating the response.", e);
@@ -198,20 +199,19 @@ public abstract class ResourceServlet extends HttpServlet {
     }
 
     protected File getResourcesParentFolder(final HttpServletRequest request) throws ServletException {
-        File resourcesParentFolder = null;
         final HttpSession session = request.getSession();
         long tenantId = 1;
         final String tenantFromRequest = request.getParameter(TENANT_PARAM);
-        if (tenantFromRequest == null) {
+        if (tenantFromRequest != null) {
+            tenantId = Long.parseLong(tenantFromRequest);
+        } else {
             final APISession apiSession = (APISession) session.getAttribute(SessionUtil.API_SESSION_PARAM_KEY);
             if (apiSession != null) {
                 tenantId = apiSession.getTenantId();
             }
-        } else {
-            tenantId = Long.parseLong(tenantFromRequest);
         }
         try {
-            resourcesParentFolder = getResourcesParentFolder(tenantId);
+            return getResourcesParentFolder(tenantId);
         } catch (final RuntimeException e) {
             final String errorMessage = "Error while using the servlet to get themes parent folder.";
             if (LOGGER.isLoggable(Level.WARNING)) {
@@ -219,7 +219,6 @@ public abstract class ResourceServlet extends HttpServlet {
             }
             throw new ServletException(errorMessage);
         }
-        return resourcesParentFolder;
     }
 
 }

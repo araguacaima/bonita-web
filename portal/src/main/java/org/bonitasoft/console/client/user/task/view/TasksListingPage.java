@@ -24,8 +24,8 @@ import org.bonitasoft.console.client.admin.bpm.task.view.TaskListingAdminPage;
 import org.bonitasoft.console.client.admin.process.view.ProcessListingAdminPage;
 import org.bonitasoft.console.client.angular.AngularIFrameView;
 import org.bonitasoft.console.client.common.formatter.OverdueDateCellFormatter;
-import org.bonitasoft.console.client.user.application.view.ProcessListingPage;
 import org.bonitasoft.console.client.user.cases.view.CaseListingPage;
+import org.bonitasoft.console.client.user.process.view.ProcessListingPage;
 import org.bonitasoft.console.client.user.task.action.TaskClaimAction;
 import org.bonitasoft.console.client.user.task.action.TaskRelaseAction;
 import org.bonitasoft.web.rest.model.bpm.flownode.ArchivedHumanTaskDefinition;
@@ -66,6 +66,7 @@ public class TasksListingPage extends ItemListingPage<HumanTaskItem> implements 
         PRIVILEGES.add(TaskListingAdminPage.TOKEN); // FIX ME: we should create a humantaskmoredetails admin page so ill never need this
         PRIVILEGES.add(CaseListingPage.TOKEN);
         PRIVILEGES.add(AngularIFrameView.CASE_LISTING_ADMIN_TOKEN);
+        PRIVILEGES.add(AngularIFrameView.TASK_LISTING_TOKEN);
         PRIVILEGES.add(ProcessListingPage.TOKEN);
         PRIVILEGES.add(ProcessListingAdminPage.TOKEN);
         PRIVILEGES.add("reportlistingadminext");
@@ -166,6 +167,7 @@ public class TasksListingPage extends ItemListingPage<HumanTaskItem> implements 
     private ItemTable performedTasksItemTable() {
         return new ItemTable(Definitions.get(ArchivedHumanTaskDefinition.TOKEN))
                 .addHiddenFilter(HumanTaskItem.ATTRIBUTE_ASSIGNED_USER_ID, Session.getUserId())
+                .addHiddenFilter(HumanTaskItem.ATTRIBUTE_STATE, HumanTaskItem.VALUE_STATE_COMPLETED)
                 .addColumn(ArchivedHumanTaskItem.ATTRIBUTE_DISPLAY_NAME, _("Name"), true)
                 .addColumn(new DateAttributeReader(ArchivedHumanTaskItem.ATTRIBUTE_REACHED_STATE_DATE), _("Performed date"), true)
                 .addColumn(
@@ -255,7 +257,7 @@ public class TasksListingPage extends ItemListingPage<HumanTaskItem> implements 
     protected ItemListingResourceFilter defineResourceFilters() {
         return new AppResourceFilter(
                 new APISearchRequest(Definitions.get(ProcessDefinition.TOKEN)).addFilter(ProcessItem.FILTER_USER_ID, Session.getUserId().toString())
-                        .addFilter(ProcessItem.FILTER_FOR_PENDING_OR_ASSIGNED_TASKS, "true"),
+                .addFilter(ProcessItem.FILTER_FOR_PENDING_OR_ASSIGNED_TASKS, "true"),
                 TABLE_AVAILABLE)
                 .addFilterMapping(HumanTaskItem.ATTRIBUTE_PROCESS_ID, ProcessItem.ATTRIBUTE_ID)
                 .addFilter(HumanTaskItem.FILTER_USER_ID, Session.getUserId());

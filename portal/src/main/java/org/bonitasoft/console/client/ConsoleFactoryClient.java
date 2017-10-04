@@ -41,7 +41,6 @@ import org.bonitasoft.console.client.admin.page.view.PageQuickDetailsPage;
 import org.bonitasoft.console.client.admin.process.view.ProcessListingAdminPage;
 import org.bonitasoft.console.client.admin.process.view.ProcessMoreDetailsAdminPage;
 import org.bonitasoft.console.client.admin.process.view.ProcessQuickDetailsAdminPage;
-import org.bonitasoft.console.client.admin.process.view.StartProcessFormPage;
 import org.bonitasoft.console.client.admin.process.view.UploadProcessPage;
 import org.bonitasoft.console.client.admin.process.view.section.category.AddProcessCategoryPage;
 import org.bonitasoft.console.client.admin.process.view.section.category.CreateCategoryAndAddToProcessPage;
@@ -66,21 +65,21 @@ import org.bonitasoft.console.client.admin.tenant.view.TenantMaintenancePage;
 import org.bonitasoft.console.client.angular.AngularIFrameView;
 import org.bonitasoft.console.client.common.system.view.PopupAboutPage;
 import org.bonitasoft.console.client.common.view.CustomPageWithFrame;
-import org.bonitasoft.console.client.common.view.PerformTaskPage;
 import org.bonitasoft.console.client.menu.view.TechnicalUserServicePausedView;
 import org.bonitasoft.console.client.menu.view.TechnicalUserWarningView;
 import org.bonitasoft.console.client.technicaluser.businessdata.BDMImportPage;
 import org.bonitasoft.console.client.technicaluser.businessdata.BDMImportWarningPopUp;
-import org.bonitasoft.console.client.user.application.view.ProcessListingPage;
 import org.bonitasoft.console.client.user.cases.view.ArchivedCaseMoreDetailsPage;
 import org.bonitasoft.console.client.user.cases.view.ArchivedCaseQuickDetailsPage;
-import org.bonitasoft.console.client.user.cases.view.CaseListingPage;
 import org.bonitasoft.console.client.user.cases.view.CaseMoreDetailsPage;
 import org.bonitasoft.console.client.user.cases.view.CaseQuickDetailsPage;
 import org.bonitasoft.console.client.user.cases.view.DisplayCaseFormPage;
+import org.bonitasoft.console.client.user.process.view.ProcessListingPage;
+import org.bonitasoft.console.client.user.process.view.ProcessQuickDetailsPage;
+import org.bonitasoft.console.client.user.process.view.StartProcessFormPage;
 import org.bonitasoft.console.client.user.task.view.ArchivedHumanTaskQuickDetailsPage;
 import org.bonitasoft.console.client.user.task.view.HumanTaskQuickDetailsPage;
-import org.bonitasoft.console.client.user.task.view.ProcessQuickDetailsPage;
+import org.bonitasoft.console.client.user.task.view.PerformTaskPage;
 import org.bonitasoft.console.client.user.task.view.TasksListingPage;
 import org.bonitasoft.console.client.user.task.view.more.ArchivedHumanTaskMoreDetailsPage;
 import org.bonitasoft.console.client.user.task.view.more.HumanTaskMoreDetailsPage;
@@ -112,9 +111,12 @@ public class ConsoleFactoryClient extends ApplicationFactoryClient {
      * Default Constructor.
      */
     public ConsoleFactoryClient() {
+        AngularIFrameView.addTokenSupport(AngularIFrameView.CASE_LISTING_TOKEN, "/user/cases/list");
         AngularIFrameView.addTokenSupport(AngularIFrameView.CASE_LISTING_ADMIN_TOKEN, "/admin/cases/list");
         AngularIFrameView.addTokenSupport(AngularIFrameView.APPLICATION_LISTING_PAGE, "/admin/applications");
         AngularIFrameView.addTokenSupport(AngularIFrameView.PROCESS_MORE_DETAILS_ADMIN_TOKEN, "/admin/processes/details");
+        AngularIFrameView.addTokenSupport(AngularIFrameView.TASK_LISTING_TOKEN, "/user/tasks/list");
+
     }
 
     protected List<String> getCurrentUserAccessRights() {
@@ -292,8 +294,8 @@ public class ConsoleFactoryClient extends ApplicationFactoryClient {
              */
 
             // Visualize & do tasks
-        } else if (TasksListingPage.TOKEN.equals(token) && isUserAuthorized(TasksListingPage.PRIVILEGES, getCurrentUserAccessRights())) {
-            return new TasksListingPage();
+        } else if (AngularIFrameView.TASK_LISTING_TOKEN.equals(token) && isUserAuthorized(TasksListingPage.PRIVILEGES, getCurrentUserAccessRights())) {
+            return prepareAngularPage(token);
         } else if (HumanTaskQuickDetailsPage.TOKEN.equals(token) && isUserAuthorized(HumanTaskQuickDetailsPage.PRIVILEGES, getCurrentUserAccessRights())) {
             return new HumanTaskQuickDetailsPage();
         } else if (HumanTaskMoreDetailsPage.TOKEN.equals(token) && isUserAuthorized(HumanTaskMoreDetailsPage.PRIVILEGES, getCurrentUserAccessRights())) {
@@ -316,8 +318,6 @@ public class ConsoleFactoryClient extends ApplicationFactoryClient {
             return new StartProcessFormPage();
 
             // Visualize Cases
-        } else if (CaseListingPage.TOKEN.equals(token) && isUserAuthorized(CaseListingPage.PRIVILEGES, getCurrentUserAccessRights())) {
-            return new CaseListingPage();
         } else if (CaseQuickDetailsPage.TOKEN.equals(token) && isUserAuthorized(CaseQuickDetailsPage.PRIVILEGES, getCurrentUserAccessRights())) {
             return new CaseQuickDetailsPage();
         } else if (ArchivedCaseQuickDetailsPage.TOKEN.equals(token) && isUserAuthorized(ArchivedCaseQuickDetailsPage.PRIVILEGES, getCurrentUserAccessRights())) {
@@ -454,6 +454,7 @@ public class ConsoleFactoryClient extends ApplicationFactoryClient {
         pagePrivileges.put(TaskQuickDetailsAdminPage.TOKEN, TaskQuickDetailsAdminPage.PRIVILEGES);
         pagePrivileges.put(TaskMoreDetailsAdminPage.TOKEN, TaskMoreDetailsAdminPage.PRIVILEGES);
         pagePrivileges.put(TasksListingPage.TOKEN, TasksListingPage.PRIVILEGES);
+        pagePrivileges.put(AngularIFrameView.TASK_LISTING_TOKEN, TasksListingPage.PRIVILEGES);
         pagePrivileges.put(HumanTaskQuickDetailsPage.TOKEN, HumanTaskQuickDetailsPage.PRIVILEGES);
         pagePrivileges.put(HumanTaskMoreDetailsPage.TOKEN, HumanTaskMoreDetailsPage.PRIVILEGES);
         pagePrivileges.put(ArchivedHumanTaskQuickDetailsPage.TOKEN, ArchivedHumanTaskQuickDetailsPage.PRIVILEGES);
@@ -462,7 +463,6 @@ public class ConsoleFactoryClient extends ApplicationFactoryClient {
         pagePrivileges.put(ProcessListingPage.TOKEN, ProcessListingPage.PRIVILEGES);
         pagePrivileges.put(ProcessQuickDetailsPage.TOKEN, ProcessQuickDetailsPage.PRIVILEGES);
         pagePrivileges.put(StartProcessFormPage.TOKEN, StartProcessFormPage.PRIVILEGES);
-        pagePrivileges.put(CaseListingPage.TOKEN, CaseListingPage.PRIVILEGES);
         pagePrivileges.put(CaseQuickDetailsPage.TOKEN, CaseQuickDetailsPage.PRIVILEGES);
         pagePrivileges.put(ArchivedCaseQuickDetailsPage.TOKEN, ArchivedCaseQuickDetailsPage.PRIVILEGES);
         pagePrivileges.put(ArchivedCaseMoreDetailsPage.TOKEN, ArchivedCaseMoreDetailsPage.PRIVILEGES);

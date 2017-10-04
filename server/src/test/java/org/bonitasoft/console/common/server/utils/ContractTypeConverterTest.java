@@ -38,6 +38,10 @@ import org.mockito.runners.MockitoJUnitRunner;
 @RunWith(MockitoJUnitRunner.class)
 public class ContractTypeConverterTest {
 
+    public static final long DATE_01_01_1970_13H_AS_LONG_GMT = 46800000L;
+    
+    public static final String DATE_01_01_1970_13H_AS_STRING_GMT = "1970-01-01T13:00:00.000Z";
+
     @Mock
     ContractDefinition contractDefinition;
 
@@ -116,9 +120,9 @@ public class ContractTypeConverterTest {
 
         final Map<String, Serializable> processedInput = contractTypeConverter.getProcessedInput(contractDefinition, input, maxSizeForTenant, tenantId, false);
 
-        assertThat(processedInput).containsOnly(entry("inputText", "text"), entry("inputBoolean", true), entry("inputDate", new Date(43200000L)),
+        assertThat(processedInput).containsOnly(entry("inputText", "text"), entry("inputBoolean", true), entry("inputDate", new Date(DATE_01_01_1970_13H_AS_LONG_GMT)),
                 entry("inputInteger", 125686181), entry("inputDecimal", 12.8),
-                entry("inputFile", new FileInputValue(filename, fileContentString.getBytes("UTF-8"))));
+                entry("inputFile", new FileInputValue(filename, "", fileContentString.getBytes("UTF-8"))));
     }
 
     @Test
@@ -135,9 +139,9 @@ public class ContractTypeConverterTest {
         final Map<String, Serializable> processedInput = contractTypeConverter.getProcessedInput(contractDefinition, input, maxSizeForTenant, tenantId, false);
         assertThat(processedInput).containsKey("inputComplex");
         final Map<String, Serializable> processedComplexInput = (Map<String, Serializable>) processedInput.get("inputComplex");
-        assertThat(processedComplexInput).containsOnly(entry("inputText", "text"), entry("inputBoolean", true), entry("inputDate", new Date(43200000L)),
+        assertThat(processedComplexInput).containsOnly(entry("inputText", "text"), entry("inputBoolean", true), entry("inputDate", new Date(DATE_01_01_1970_13H_AS_LONG_GMT)),
                 entry("inputInteger", 125686181), entry("inputDecimal", 12.8),
-                entry("inputFile", new FileInputValue(filename, fileContentString.getBytes("UTF-8"))));
+                entry("inputFile", new FileInputValue(filename, "", fileContentString.getBytes("UTF-8"))));
     }
 
     @Test
@@ -158,9 +162,9 @@ public class ContractTypeConverterTest {
         assertThat(processedMultipleComplexInput).hasSize(2);
         for (final Serializable processedComplexInput : processedMultipleComplexInput) {
             final Map<String, Serializable> processedComplexInputMap = (Map<String, Serializable>) processedComplexInput;
-            assertThat(processedComplexInputMap).containsOnly(entry("inputText", "text"), entry("inputBoolean", true), entry("inputDate", new Date(43200000L)),
+            assertThat(processedComplexInputMap).containsOnly(entry("inputText", "text"), entry("inputBoolean", true), entry("inputDate", new Date(DATE_01_01_1970_13H_AS_LONG_GMT)),
                     entry("inputInteger", 125686181), entry("inputDecimal", 12.8),
-                    entry("inputFile", new FileInputValue(filename, fileContentString.getBytes("UTF-8"))));
+                    entry("inputFile", new FileInputValue(filename, "", fileContentString.getBytes("UTF-8"))));
         }
     }
 
@@ -208,9 +212,9 @@ public class ContractTypeConverterTest {
         assertThat(processedMultipleComplexInput).hasSize(3);
         final Serializable processedComplexInput1 = processedMultipleComplexInput.get(0);
         final Map<String, Serializable> processedComplexInputMap1 = (Map<String, Serializable>) processedComplexInput1;
-        assertThat(processedComplexInputMap1).containsOnly(entry("inputText", "text"), entry("inputBoolean", true), entry("inputDate", new Date(43200000L)),
+        assertThat(processedComplexInputMap1).containsOnly(entry("inputText", "text"), entry("inputBoolean", true), entry("inputDate", new Date(DATE_01_01_1970_13H_AS_LONG_GMT)),
                 entry("inputInteger", 125686181), entry("inputDecimal", 12.8),
-                entry("inputFile", new FileInputValue(filename, fileContentString.getBytes("UTF-8"))));
+                entry("inputFile", new FileInputValue(filename, "", fileContentString.getBytes("UTF-8"))));
         final Serializable processedComplexInput2 = processedMultipleComplexInput.get(1);
         final Map<String, Serializable> processedComplexInputMap2 = (Map<String, Serializable>) processedComplexInput2;
         assertThat(processedComplexInputMap2).containsOnly(entry("inputText", null), entry("inputBoolean", null), entry("inputDate", null),
@@ -278,12 +282,13 @@ public class ContractTypeConverterTest {
         final Map<String, Serializable> inputMap = new HashMap<>();
         inputMap.put("inputText", "text");
         inputMap.put("inputBoolean", "true");
-        inputMap.put("inputDate", "1970-01-01T13:00:00.000Z");
+        inputMap.put("inputDate", DATE_01_01_1970_13H_AS_STRING_GMT);
         inputMap.put("inputInteger", "125686181");
         inputMap.put("inputDecimal", "12.8");
         final Map<String, Serializable> fileMap = new HashMap<>();
         fileMap.put(InputDefinition.FILE_INPUT_FILENAME, filename);
         fileMap.put(ContractTypeConverter.FILE_TEMP_PATH, tempFilePath);
+        fileMap.put(ContractTypeConverter.CONTENT_TYPE, "contentType");
         inputMap.put("inputFile", (Serializable) fileMap);
         return inputMap;
     }

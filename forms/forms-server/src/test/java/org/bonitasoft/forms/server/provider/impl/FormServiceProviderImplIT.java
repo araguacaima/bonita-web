@@ -14,22 +14,6 @@
  */
 package org.bonitasoft.forms.server.provider.impl;
 
-import java.io.File;
-import java.io.InputStream;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
 import org.bonitasoft.engine.api.ProcessAPI;
 import org.bonitasoft.engine.api.TenantAPIAccessor;
 import org.bonitasoft.engine.bpm.actor.ActorCriterion;
@@ -79,6 +63,21 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 import org.w3c.dom.Document;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.File;
+import java.io.InputStream;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * @author QiXiang Zhang, Yongtao Guo
@@ -134,8 +133,16 @@ public class FormServiceProviderImplIT extends FormsTestCase {
 
     @After
     public void tearDown() throws Exception {
-        processAPI.disableProcess(processDefinition.getId());
-        processAPI.deleteProcess(processDefinition.getId());
+        deleteProcess(processDefinition.getId());
+    }
+
+    protected void deleteProcess(final long processDefinitionId) throws ProcessDefinitionNotFoundException, ProcessActivationException, DeletionException {
+        processAPI.disableProcess(processDefinitionId);
+        do {
+        } while (processAPI.deleteProcessInstances(processDefinitionId, 0, 20) > 0);
+        do {
+        } while (processAPI.deleteArchivedProcessInstances(processDefinitionId, 0, 20) > 0);
+        processAPI.deleteProcessDefinition(processDefinitionId);
     }
 
     @Test
@@ -315,7 +322,7 @@ public class FormServiceProviderImplIT extends FormsTestCase {
         long activityInstanceId = waitForPendingTask();
         processAPI.assignUserTask(activityInstanceId, getSession().getUserId());
         processAPI.executeFlowNode(activityInstanceId);
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -604,13 +611,9 @@ public class FormServiceProviderImplIT extends FormsTestCase {
             final ProcessDefinition processDefinition,
             final Long parentProcessInstanceId) throws DeletionException, ProcessDefinitionNotFoundException, ProcessActivationException {
 
-        processAPI.deleteProcessInstance(parentProcessInstanceId);
-        processAPI.disableProcess(processDefinition.getId());
-        processAPI.disableProcess(intermediateSubProcessDefinition.getId());
-        processAPI.disableProcess(subProcessDefinition.getId());
-        processAPI.deleteProcessDefinition(processDefinition.getId());
-        processAPI.deleteProcessDefinition(intermediateSubProcessDefinition.getId());
-        processAPI.deleteProcessDefinition(subProcessDefinition.getId());
+        deleteProcess(processDefinition.getId());
+        deleteProcess(intermediateSubProcessDefinition.getId());
+        deleteProcess(subProcessDefinition.getId());
     }
 
     protected ProcessDefinition createParentProcess(final org.bonitasoft.engine.identity.User user) throws InvalidExpressionException,
@@ -687,7 +690,7 @@ public class FormServiceProviderImplIT extends FormsTestCase {
     }
 
     protected void terminateProcessInstance(final long processInstanceId) throws Exception, UpdateException, FlowNodeExecutionException {
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -697,7 +700,7 @@ public class FormServiceProviderImplIT extends FormsTestCase {
         long activityInstanceId = processAPI.getPendingHumanTaskInstances(getSession().getUserId(), 0, 1, ActivityInstanceCriterion.NAME_ASC).get(0).getId();
         processAPI.assignUserTask(activityInstanceId, getSession().getUserId());
         processAPI.executeFlowNode(activityInstanceId);
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -707,7 +710,7 @@ public class FormServiceProviderImplIT extends FormsTestCase {
         activityInstanceId = processAPI.getPendingHumanTaskInstances(getSession().getUserId(), 0, 1, ActivityInstanceCriterion.NAME_ASC).get(0).getId();
         processAPI.assignUserTask(activityInstanceId, getSession().getUserId());
         processAPI.executeFlowNode(activityInstanceId);
-        Assert.assertTrue("no archived process isnatnce was found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no archived process isnatnce was found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -719,7 +722,7 @@ public class FormServiceProviderImplIT extends FormsTestCase {
     }
 
     protected long waitForPendingTask() throws Exception {
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {

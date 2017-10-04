@@ -16,7 +16,7 @@
  */
 package org.bonitasoft.console.client.admin.bpm.cases.view;
 
-import static org.bonitasoft.web.toolkit.client.common.i18n.AbstractI18n.*;
+import static org.bonitasoft.web.toolkit.client.common.i18n.AbstractI18n._;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -29,6 +29,7 @@ import org.bonitasoft.console.client.common.formatter.ArchivedFlowNodeDateFormat
 import org.bonitasoft.console.client.common.formatter.ArchivedFlowNodeExecutedByFormatter;
 import org.bonitasoft.console.client.common.formatter.FlowNodeDisplayNameFormatter;
 import org.bonitasoft.console.client.data.item.attribute.reader.DeployedUserReader;
+import org.bonitasoft.console.client.user.cases.action.OnCaseDetailsNotFound;
 import org.bonitasoft.console.client.user.cases.view.component.CaseOverviewButton;
 import org.bonitasoft.web.rest.model.bpm.cases.CaseItem;
 import org.bonitasoft.web.rest.model.bpm.flownode.ArchivedFlowNodeDefinition;
@@ -127,6 +128,7 @@ public class CaseMoreDetailsAdminPage extends CaseQuickDetailsAdminPage {
     protected ItemTable getTaskTable(final CaseItem item) {
         return new ItemTable(new JsId("tasks"), getHumanTasksDefinition())
         .addHiddenFilter(HumanTaskItem.ATTRIBUTE_CASE_ID, item.getId())
+                .addHiddenFilter(HumanTaskItem.ATTRIBUTE_STATE, HumanTaskItem.VALUE_STATE_READY)
         .addColumn(HumanTaskItem.ATTRIBUTE_DISPLAY_NAME, _("Name"))
         .addColumn(new DateAttributeReader(HumanTaskItem.ATTRIBUTE_DUE_DATE), _("Due date"))
         .addColumn(new DescriptionAttributeReader(HumanTaskItem.ATTRIBUTE_DISPLAY_DESCRIPTION, HumanTaskItem.ATTRIBUTE_DESCRIPTION), _("Description"))
@@ -193,4 +195,9 @@ public class CaseMoreDetailsAdminPage extends CaseQuickDetailsAdminPage {
         return TOKEN;
     }
 
+    @Override
+    protected void onItemNotFound(final APIID caseId) {
+        final OnCaseDetailsNotFound onCaseDetailsNotFound = new OnCaseDetailsNotFound(ArchivedCaseMoreDetailsAdminPage.TOKEN);
+        onCaseDetailsNotFound.checkIfCaseIsArchived(caseId.toString());
+    }
 }

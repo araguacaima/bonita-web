@@ -16,11 +16,12 @@ package org.bonitasoft.console.common.server.servlet;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.bonitasoft.console.common.server.preferences.constants.WebBonitaConstantsUtils;
 
 /**
  * Servlet allowing to upload a file in the platform common temp folder
- * 
+ *
  * @author Anthony Birembaut
  */
 public class PlatformFileUploadServlet extends FileUploadServlet {
@@ -33,6 +34,11 @@ public class PlatformFileUploadServlet extends FileUploadServlet {
     @Override
     protected void defineUploadDirectoryPath(final HttpServletRequest request) {
         setUploadDirectoryPath(WebBonitaConstantsUtils.getInstance().getTempFolder().getPath());
+    }
+
+    @Override
+    protected void setUploadSizeMax(final ServletFileUpload serviceFileUpload, final HttpServletRequest request) {
+        //currently no limit check on the platform
     }
 
 }

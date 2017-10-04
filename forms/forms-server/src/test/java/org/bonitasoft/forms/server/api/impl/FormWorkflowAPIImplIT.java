@@ -5,12 +5,10 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2.0 of the License, or
  * (at your option) any later version.
- *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
@@ -77,7 +75,6 @@ import org.mockito.Mockito;
  * Unit test for the implementation of the form workflow API
  *
  * @author Anthony Birembaut
- *
  */
 public class FormWorkflowAPIImplIT extends FormsTestCase {
 
@@ -105,7 +102,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
                 "Application",
                 String.class.getName(),
                 expressionBuilder.createNewInstance("word").setContent("Word").setExpressionType(ExpressionType.TYPE_CONSTANT.name())
-                .setReturnType(String.class.getName()).done());
+                        .setReturnType(String.class.getName()).done());
         processBuilder.addDocumentDefinition("doc1").addContentFileName("filename.txt").addFile("barFilename.txt");
         processBuilder.addActor("myActor");
         processBuilder.addUserTask("Request", "myActor");
@@ -132,7 +129,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
 
         processAPI = TenantAPIAccessor.getProcessAPI(getSession());
         processInstanceID = processAPI.startProcess(bonitaProcess.getId()).getId();
-        final List<Expression> dependencies = new ArrayList<Expression>();
+        final List<Expression> dependencies = new ArrayList<>();
         dependencies.add(new Expression("Application", "Application", ExpressionType.TYPE_VARIABLE.name(), String.class.getName(), null,
                 new ArrayList<Expression>()));
         dataExpression = new Expression(null, "Application", ExpressionType.TYPE_READ_ONLY_SCRIPT.name(), String.class.getName(), "GROOVY", dependencies);
@@ -148,7 +145,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
 
     @Test
     public void testGetTaskFieldValue() throws Exception {
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -170,7 +167,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
 
     @Test
     public void testExecuteActionsAndTerminate() throws Exception {
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -179,10 +176,10 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         }.waitUntil());
         HumanTaskInstance humanTaskInstance = processAPI.getPendingHumanTaskInstances(getSession().getUserId(), 0, 1, ActivityInstanceCriterion.NAME_ASC)
                 .get(0);
-        final Map<String, FormFieldValue> fieldValues = new HashMap<String, FormFieldValue>();
+        final Map<String, FormFieldValue> fieldValues = new HashMap<>();
         final FormFieldValue value1 = new FormFieldValue("Excel", String.class.getName());
         fieldValues.put("fieldId1", value1);
-        final List<FormAction> formActions = new ArrayList<FormAction>();
+        final List<FormAction> formActions = new ArrayList<>();
         final Expression fieldExpression = new Expression(null, "field_fieldId1", ExpressionType.TYPE_INPUT.name(), String.class.getName(), null,
                 new ArrayList<Expression>());
         formActions.add(new FormAction(ActionType.ASSIGNMENT, "Application", LeftOperand.TYPE_DATA, "=", null, fieldExpression, "submitButtonId", null));
@@ -190,7 +187,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         formWorkflowApi.executeActionsAndTerminate(getSession(), getSession().getUserId(), humanTaskInstance.getId(), fieldValues, formActions, Locale.ENGLISH,
                 "submitButtonId",
                 new HashMap<String, Serializable>());
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -208,7 +205,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
     @Test
     public void testExecuteActionsAndTerminateWithExternalDocument() throws Exception {
         final IFormWorkflowAPI api = FormAPIFactory.getFormWorkflowAPI();
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -217,19 +214,19 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         }.waitUntil());
         HumanTaskInstance humanTaskInstance = processAPI.getPendingHumanTaskInstances(getSession().getUserId(), 0, 1, ActivityInstanceCriterion.NAME_ASC)
                 .get(0);
-        final Map<String, FormFieldValue> fieldValues = new HashMap<String, FormFieldValue>();
+        final Map<String, FormFieldValue> fieldValues = new HashMap<>();
         final FormFieldValue value1 = new FormFieldValue(new DocumentValue("http://www.bonitasoft.org"), String.class.getName());
         fieldValues.put("fieldId1", value1);
-        final List<FormAction> formActions = new ArrayList<FormAction>();
+        final List<FormAction> formActions = new ArrayList<>();
         final Expression fieldExpression = new Expression(null, "field_fieldId1", ExpressionType.TYPE_INPUT.name(), DocumentValue.class.getName(), null,
                 new ArrayList<Expression>());
         formActions
-        .add(new FormAction(ActionType.ASSIGNMENT, "DocumentToCreate", LeftOperand.TYPE_DOCUMENT, "=", null, fieldExpression, "submitButtonId", null));
+                .add(new FormAction(ActionType.ASSIGNMENT, "DocumentToCreate", LeftOperand.TYPE_DOCUMENT, "=", null, fieldExpression, "submitButtonId", null));
         processAPI.assignUserTask(humanTaskInstance.getId(), getSession().getUserId());
         api.executeActionsAndTerminate(getSession(), getSession().getUserId(), humanTaskInstance.getId(), fieldValues, formActions, Locale.ENGLISH,
                 "submitButtonId",
                 new HashMap<String, Serializable>());
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -247,7 +244,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
     @Test
     public void testExecuteActionsAndTerminateWithInternalDocument() throws Exception {
         final IFormWorkflowAPI api = FormAPIFactory.getFormWorkflowAPI();
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -260,15 +257,15 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         final ExpressionBuilder expressionBuilder = new ExpressionBuilder();
         final org.bonitasoft.engine.expression.Expression documentExpression = expressionBuilder.createNewInstance("doc1").setContent("doc1")
                 .setExpressionType(ExpressionType.TYPE_DOCUMENT.name()).setReturnType(org.bonitasoft.engine.bpm.document.Document.class.getName()).done();
-        final Map<org.bonitasoft.engine.expression.Expression, Map<String, Serializable>> expressions = new HashMap<org.bonitasoft.engine.expression.Expression, Map<String, Serializable>>();
+        final Map<org.bonitasoft.engine.expression.Expression, Map<String, Serializable>> expressions = new HashMap<>();
         expressions.put(documentExpression, new HashMap<String, Serializable>());
         final Map<String, Serializable> evaluationResult = processAPI.evaluateExpressionsOnActivityInstance(humanTaskInstance.getId(), expressions);
         Assert.assertTrue(evaluationResult.containsKey("doc1"));
         final org.bonitasoft.engine.bpm.document.Document document = (org.bonitasoft.engine.bpm.document.Document) evaluationResult.get("doc1");
         Assert.assertNotNull(document);
 
-        final Map<String, FormFieldValue> fieldValues = new HashMap<String, FormFieldValue>();
-        final File tempFolder =  WebBonitaConstantsUtils.getInstance(getSession().getTenantId()).getTempFolder();
+        final Map<String, FormFieldValue> fieldValues = new HashMap<>();
+        final File tempFolder = WebBonitaConstantsUtils.getInstance(getSession().getTenantId()).getTempFolder();
         tempFolder.mkdirs();
         final File file = File.createTempFile("testDoc", "txt", tempFolder);
         file.deleteOnExit();
@@ -279,7 +276,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         value1.setDocumentName("doc1");
         value1.setDisplayedValue(file.getName());
         fieldValues.put("fieldId1", value1);
-        final List<FormAction> formActions = new ArrayList<FormAction>();
+        final List<FormAction> formActions = new ArrayList<>();
         final Expression fieldExpression = new Expression(null, "field_fieldId1", ExpressionType.TYPE_INPUT.name(), DocumentValue.class.getName(), null,
                 new ArrayList<Expression>());
         formActions.add(new FormAction(ActionType.ASSIGNMENT, "doc1", LeftOperand.TYPE_DOCUMENT, "=", null, fieldExpression, "submitButtonId", null));
@@ -288,7 +285,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         api.executeActionsAndTerminate(getSession(), getSession().getUserId(), humanTaskInstance.getId(), fieldValues, formActions, Locale.ENGLISH,
                 "submitButtonId",
                 new HashMap<String, Serializable>());
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -316,7 +313,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
     @Test
     public void testExecuteActionsAndTerminateWithEmptyDocument() throws Exception {
         final IFormWorkflowAPI api = FormAPIFactory.getFormWorkflowAPI();
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -329,20 +326,20 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         final ExpressionBuilder expressionBuilder = new ExpressionBuilder();
         final org.bonitasoft.engine.expression.Expression documentExpression = expressionBuilder.createNewInstance("doc1").setContent("doc1")
                 .setExpressionType(ExpressionType.TYPE_DOCUMENT.name()).setReturnType(org.bonitasoft.engine.bpm.document.Document.class.getName()).done();
-        final Map<org.bonitasoft.engine.expression.Expression, Map<String, Serializable>> expressions = new HashMap<org.bonitasoft.engine.expression.Expression, Map<String, Serializable>>();
+        final Map<org.bonitasoft.engine.expression.Expression, Map<String, Serializable>> expressions = new HashMap<>();
         expressions.put(documentExpression, new HashMap<String, Serializable>());
         final Map<String, Serializable> evaluationResult = processAPI.evaluateExpressionsOnActivityInstance(humanTaskInstance.getId(), expressions);
         Assert.assertTrue(evaluationResult.containsKey("doc1"));
         final org.bonitasoft.engine.bpm.document.Document document = (org.bonitasoft.engine.bpm.document.Document) evaluationResult.get("doc1");
         Assert.assertNotNull(document);
 
-        final Map<String, FormFieldValue> fieldValues = new HashMap<String, FormFieldValue>();
+        final Map<String, FormFieldValue> fieldValues = new HashMap<>();
         final FormFieldValue value1 = new FormFieldValue(null, File.class.getName());
         value1.setDocument(true);
         value1.setDocumentId(processAPI.getLastDocument(processInstanceID, "doc1").getId());
         value1.setDocumentName("doc1");
         fieldValues.put("fieldId1", value1);
-        final List<FormAction> formActions = new ArrayList<FormAction>();
+        final List<FormAction> formActions = new ArrayList<>();
         final Expression fieldExpression = new Expression(null, "field_fieldId1", ExpressionType.TYPE_INPUT.name(), DocumentValue.class.getName(), null,
                 new ArrayList<Expression>());
         formActions.add(new FormAction(ActionType.ASSIGNMENT, "doc1", LeftOperand.TYPE_DOCUMENT, "=", null, fieldExpression, "submitButtonId", null));
@@ -350,7 +347,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         api.executeActionsAndTerminate(getSession(), getSession().getUserId(), humanTaskInstance.getId(), fieldValues, formActions, Locale.ENGLISH,
                 "submitButtonId",
                 new HashMap<String, Serializable>());
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -377,7 +374,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
     @Test
     public void testExecuteActionsAndTerminateWithAPIAccessor() throws Exception {
         final IFormWorkflowAPI api = FormAPIFactory.getFormWorkflowAPI();
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -386,13 +383,13 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         }.waitUntil());
         HumanTaskInstance humanTaskInstance = processAPI.getPendingHumanTaskInstances(getSession().getUserId(), 0, 1, ActivityInstanceCriterion.NAME_ASC)
                 .get(0);
-        final Map<String, FormFieldValue> fieldValues = new HashMap<String, FormFieldValue>();
-        final List<FormAction> formActions = new ArrayList<FormAction>();
+        final Map<String, FormFieldValue> fieldValues = new HashMap<>();
+        final List<FormAction> formActions = new ArrayList<>();
         final Expression apiAccessorExpression = new Expression("apiAccessor", "apiAccessor", ExpressionType.TYPE_ENGINE_CONSTANT.name(),
                 APIAccessor.class.getName(), null, new ArrayList<Expression>());
         final Expression processInstanceIdExpression = new Expression("processInstanceId", "processInstanceId", ExpressionType.TYPE_ENGINE_CONSTANT.name(),
                 Long.class.getName(), null, new ArrayList<Expression>());
-        final ArrayList<Expression> dependencyExpressions = new ArrayList<Expression>();
+        final ArrayList<Expression> dependencyExpressions = new ArrayList<>();
         dependencyExpressions.add(apiAccessorExpression);
         dependencyExpressions.add(processInstanceIdExpression);
         final Expression fieldExpression = new Expression(null,
@@ -403,7 +400,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         api.executeActionsAndTerminate(getSession(), getSession().getUserId(), humanTaskInstance.getId(), fieldValues, formActions, Locale.ENGLISH,
                 "submitButtonId",
                 new HashMap<String, Serializable>());
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -420,10 +417,10 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
 
     @Test
     public void testExecuteActionsAndStartInstance() throws Exception {
-        final Map<String, FormFieldValue> fieldValues = new HashMap<String, FormFieldValue>();
+        final Map<String, FormFieldValue> fieldValues = new HashMap<>();
         final FormFieldValue value1 = new FormFieldValue("Excel", String.class.getName());
         fieldValues.put("fieldId1", value1);
-        final List<FormAction> formActions = new ArrayList<FormAction>();
+        final List<FormAction> formActions = new ArrayList<>();
         final Expression fieldExpression = new Expression(null, "field_fieldId1", ExpressionType.TYPE_INPUT.name(), String.class.getName(), null,
                 new ArrayList<Expression>());
         formActions.add(new FormAction(ActionType.ASSIGNMENT, "Application", LeftOperand.TYPE_DATA, "=", null, fieldExpression, "submitButtonId", null));
@@ -435,7 +432,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
 
     @Test
     public void testGetRelatedProcessesNextTask() throws Exception {
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -447,7 +444,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
         Assert.assertNotNull(humanTaskInstance);
         processAPI.assignUserTask(humanTaskInstance.getId(), getSession().getUserId());
         processAPI.executeFlowNode(humanTaskInstance.getId());
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -464,7 +461,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
 
     @Test
     public void testGetRelatedProcessesNextTaskAfterInstantiation() throws Exception {
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -483,7 +480,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
 
     @Test
     public void testGetAnyTodoListTaskForProcessDefinition() throws Exception {
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -504,7 +501,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
 
     @Test
     public void testGetAnyTodoListTaskForProcessInstance() throws Exception {
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {
@@ -546,7 +543,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
     @Test
     public void isTaskReady_return_false_if_task_is_performed() throws Exception {
         final TestHumanTask task = TestProcessFactory.getDefaultHumanTaskProcess().addActor(getInitiator()).startCase().getNextHumanTask();
-        task.assignTo(getInitiator()).execute();
+        task.assignTo(getInitiator()).execute().waitFinished();
 
         final boolean isTaskReady = formWorkflowApi.isTaskReady(getSession(), task.getId());
 
@@ -566,7 +563,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
     @Test
     public void getTaskEditState_return_NOT_EDITABLE_if_task_is_performed_using_original_task_ID() throws Exception {
         final TestHumanTask task = TestProcessFactory.getDefaultHumanTaskProcess().addActor(getInitiator()).startCase().getNextHumanTask();
-        task.assignTo(getInitiator()).execute();
+        task.assignTo(getInitiator()).execute().waitFinished();
 
         final ActivityEditState state = formWorkflowApi.getTaskEditState(getSession(), task.getId());
 
@@ -575,7 +572,7 @@ public class FormWorkflowAPIImplIT extends FormsTestCase {
 
     @Test
     public void testGetActivityAttributesActor() throws Exception {
-        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 1000) {
+        Assert.assertTrue("no pending user task instances are found", new WaitUntil(50, 3000) {
 
             @Override
             protected boolean check() throws Exception {

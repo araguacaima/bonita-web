@@ -17,7 +17,10 @@ package org.bonitasoft.console.common.server.servlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.bonitasoft.console.common.server.preferences.constants.WebBonitaConstantsUtils;
+import org.bonitasoft.console.common.server.preferences.properties.ConsoleProperties;
+import org.bonitasoft.console.common.server.preferences.properties.PropertiesFactory;
 import org.bonitasoft.engine.session.APISession;
 
 /**
@@ -26,7 +29,6 @@ import org.bonitasoft.engine.session.APISession;
  * @author Anthony Birembaut
  */
 public class TenantFileUploadServlet extends FileUploadServlet {
-
     /**
      * UID
      */
@@ -43,5 +45,13 @@ public class TenantFileUploadServlet extends FileUploadServlet {
         return (APISession) session.getAttribute("apiSession");
     }
 
+    @Override
+    protected void setUploadSizeMax(final ServletFileUpload serviceFileUpload, final HttpServletRequest request) {
+        serviceFileUpload.setFileSizeMax(getConsoleProperties(getAPISession(request).getTenantId()).getMaxSize() * MEGABYTE);
+    }
+
+    protected ConsoleProperties getConsoleProperties(final long tenantId) {
+        return PropertiesFactory.getConsoleProperties(tenantId);
+    }
 
 }

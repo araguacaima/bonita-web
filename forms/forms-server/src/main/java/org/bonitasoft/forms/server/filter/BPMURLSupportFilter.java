@@ -127,6 +127,11 @@ public class BPMURLSupportFilter implements Filter {
     public static final String RECAP_PARAM = "recap";
 
     /**
+     * Ticket parameter for SSO
+     */
+    public static final String TICKET_PARAM = "ticket";
+
+    /**
      * form type: entry
      */
     public static final String ENTRY_FORM = "entry";
@@ -188,7 +193,7 @@ public class BPMURLSupportFilter implements Filter {
             final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
             final Map<String, String[]> parameters = new HashMap<String, String[]>(httpServletRequest.getParameterMap());
             final List<String> supportedParameterKeysList = Arrays.asList(FORM_LOCALE_URL_PARAM, TENANT_PARAM, UI_MODE_PARAM, THEME_PARAM,
-                    GWT_DEBUG_PARAM, TOKEN_URL_PARAM, AUTO_LOGIN_PARAM);
+                    GWT_DEBUG_PARAM, TOKEN_URL_PARAM, AUTO_LOGIN_PARAM, TICKET_PARAM);
             final Set<String> parameterKeys = new HashSet<String>(parameters.keySet());
             parameterKeys.removeAll(supportedParameterKeysList);
             if (!parameterKeys.isEmpty()) {
@@ -348,7 +353,7 @@ public class BPMURLSupportFilter implements Filter {
             final ProcessAPI processAPI = TenantAPIAccessor.getProcessAPI(session);
             final SearchOptionsBuilder builder = buildSearchOptions(0, 100, ProcessDeploymentInfoSearchDescriptor.DEPLOYMENT_DATE + " DESC", null);
             builder.filter(ProcessDeploymentInfoSearchDescriptor.NAME, processName[0]);
-            final SearchResult<ProcessDeploymentInfo> deploymentInfoResult = processAPI.searchProcessDeploymentInfos(userId, builder.done());
+            final SearchResult<ProcessDeploymentInfo> deploymentInfoResult = processAPI.searchProcessDeploymentInfosCanBeStartedBy(userId, builder.done());
             if (deploymentInfoResult != null && deploymentInfoResult.getCount() > 0) {
                 processUUID = deploymentInfoResult.getResult().get(0).getProcessId();
             } else {

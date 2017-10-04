@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -53,6 +54,7 @@ public class ContractTypeConverter {
     public static final String[] ISO_8601_DATE_PATTERNS = new String[]{"yyyy-MM-dd", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss'Z'",
             "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"};
 
+    public static final String CONTENT_TYPE = "contentType";
     public static final String FILE_TEMP_PATH = "tempPath";
     public static final String TEMP_PATH_DESCRIPTION = "file name in the temporary upload directory";
 
@@ -69,6 +71,7 @@ public class ContractTypeConverter {
         convertUtilsBean.register(true, false, 0);
         final DateConverter dateConverter = new DateConverter();
         dateConverter.setPatterns(datePatterns);
+        dateConverter.setTimeZone(TimeZone.getTimeZone("GMT"));
         convertUtilsBean.register(dateConverter, Date.class);
     }
 
@@ -157,7 +160,10 @@ public class ContractTypeConverter {
             final Map<String, Serializable> mapOfValues = (Map<String, Serializable>) inputValue;
             if (mapOfValues.containsKey(InputDefinition.FILE_INPUT_FILENAME) && mapOfValues.containsKey(FILE_TEMP_PATH)) {
                 final String filename = (String) mapOfValues.get(InputDefinition.FILE_INPUT_FILENAME);
-                final FileInputValue fileInputValue = new FileInputValue(filename, retrieveFileAndGetContent((String) mapOfValues.get(FILE_TEMP_PATH),
+                final FileInputValue fileInputValue = new FileInputValue(
+                        filename,
+                        (String) mapOfValues.get(CONTENT_TYPE),
+                        retrieveFileAndGetContent((String) mapOfValues.get(FILE_TEMP_PATH),
                         deleteFile));
                 return fileInputValue;
             }

@@ -15,6 +15,7 @@
 package org.bonitasoft.console.common.server.preferences.constants;
 
 import java.io.File;
+import java.nio.file.Paths;
 
 /**
  * @author Ruiheng.Fan
@@ -24,21 +25,14 @@ public class WebBonitaConstantsImpl implements WebBonitaConstants {
     /**
      * platform folder
      */
-    public static final String platformFolderName = "platform";
+    private static final String platformFolderName = "platform";
 
-    public String platformFolderPath = null;
-
-    /**
-     * tenant template folder
-     */
-    public static final String tenantTemplateFolderName = "tenant-template";
-
-    public String tenantTemplateFolderPath = null;
+    private String platformFolderPath = null;
 
     /**
      * tenants folder
      */
-    public String tenantsFolderPath = null;
+    private String tenantsFolderPath = null;
 
     /**
      * tmp
@@ -50,16 +44,7 @@ public class WebBonitaConstantsImpl implements WebBonitaConstants {
      */
     private String confFolderPath = null;
 
-    /**
-     * work
-     */
-    private String workFolderPath = null;
-
     private String formsWorkFolderPath = null;
-
-    private final String workLibFolderPath = null;
-
-    private String bdmWorkFolderPath;
 
     /**
      * Default constructor.
@@ -80,7 +65,7 @@ public class WebBonitaConstantsImpl implements WebBonitaConstants {
     @Override
     public String getTenantsFolderPath() {
         if (tenantsFolderPath == null) {
-            tenantsFolderPath = clientFolderPath + tenantsFolderName + File.separator;
+            tenantsFolderPath = Paths.get(getTempFolderPath()).resolveSibling(tenantsFolderName).toString() + File.separator;
         }
         return tenantsFolderPath;
     }
@@ -89,26 +74,15 @@ public class WebBonitaConstantsImpl implements WebBonitaConstants {
      * {@inheritDoc}
      */
     @Override
-    public String getTenantTemplateFolderPath() {
-        if (tenantTemplateFolderPath == null) {
-            tenantTemplateFolderPath = getPlatformFolderPath() + tenantTemplateFolderName + File.separator;
-        }
-        return tenantTemplateFolderPath;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public String getTempFolderPath() {
         if (tempFolderPath == null) {
-            tempFolderPath = getPlatformFolderPath() + tmpFolderName + File.separator;
+            tempFolderPath = rootTempDir + File.separator + platformFolderName + File.separator;
         }
         return tempFolderPath;
     }
 
     @Override
-    public String getThemePortalFolderPath() {
+    public String getThemeFolderPath() {
         return null;
     }
 
@@ -123,28 +97,11 @@ public class WebBonitaConstantsImpl implements WebBonitaConstants {
         return confFolderPath;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public String getPortalDefaultIconsFolderPath() {
-        return null;
-    }
-
-    @Override
-    public String getPortalProcessIconsFolderPath() {
-        return null;
-    }
-
-    @Override
-    public String getPortalUserIconsFolderPath() {
-        return null;
-    }
-
-    @Override
-    public String getPortalRoleIconsFolderPath() {
-        return null;
-    }
-
-    @Override
-    public String getPortalProfilesIconsFolderPath() {
+    public String getReportsTempFolderPath() {
         return null;
     }
 
@@ -152,7 +109,7 @@ public class WebBonitaConstantsImpl implements WebBonitaConstants {
      * {@inheritDoc}
      */
     @Override
-    public String getProfilesWorkFolderPath() {
+    public String getPagesTempFolderPath() {
         return null;
     }
 
@@ -160,56 +117,16 @@ public class WebBonitaConstantsImpl implements WebBonitaConstants {
      * {@inheritDoc}
      */
     @Override
-    public String getReportsWorkFolderPath() {
-        return null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getPagesWorkFolderPath() {
-        return null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getWorkFolderPath() {
-        if (workFolderPath == null) {
-            workFolderPath = getPlatformFolderPath() + workFolderName + File.separator;
-        }
-        return workFolderPath;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getFormsWorkFolderPath() {
+    public String getFormsTempFolderPath() {
         if (formsWorkFolderPath == null) {
-            formsWorkFolderPath = getWorkFolderPath() + formsFolderName + File.separator;
+            formsWorkFolderPath = getTempFolderPath() + formsFolderName + File.separator;
         }
         return formsWorkFolderPath;
     }
 
     @Override
-    public String getPDFTemplateFolderPath() {
-        return null;
-    }
-
-    @Override
-    public String getPortalGroupIconsFolderPath() {
-        return null;
-    }
-
-    @Override
-    public String getBDMWorkFolderPath() {
-        if (bdmWorkFolderPath == null) {
-            bdmWorkFolderPath = getWorkFolderPath() + File.separator + bdmFolderName + File.separator;
-        }
-        return bdmWorkFolderPath;
+    public String getBDMTempFolderPath() {
+        return null; // does not means anything at platform level
     }
 
 }

@@ -34,6 +34,7 @@ import org.bonitasoft.web.rest.server.api.bpm.process.ProcessContractResource;
 import org.bonitasoft.web.rest.server.api.bpm.process.ProcessDefinitionDesignResource;
 import org.bonitasoft.web.rest.server.api.bpm.process.ProcessInstantiationResource;
 import org.bonitasoft.web.rest.server.api.form.FormMappingResource;
+import org.bonitasoft.web.rest.server.api.system.I18nTanslationResource;
 import org.restlet.Application;
 import org.restlet.Context;
 import org.restlet.Request;
@@ -164,6 +165,9 @@ public class BonitaRestletApplication extends Application {
         // api extension
         router.attach(ROUTER_EXTENSION_PREFIX, factory.createExtensionResource(), Template.MODE_STARTS_WITH);
 
+        // GET all translations
+        router.attach("/system/i18ntranslation", factory.create(I18nTanslationResource.class));
+
         return router;
     }
 
@@ -174,5 +178,4 @@ public class BonitaRestletApplication extends Application {
         Engine.setRestletLogLevel(Level.OFF);
         super.handle(request, response);
     }
-
 }

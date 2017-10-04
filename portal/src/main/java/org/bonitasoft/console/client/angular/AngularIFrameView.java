@@ -21,6 +21,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.bonitasoft.console.client.user.cases.view.IFrameView;
+import org.bonitasoft.console.client.user.process.action.ProcessInstantiationCallbackBehavior;
+import org.bonitasoft.console.client.user.process.view.ProcessInstantiationEventListener;
+import org.bonitasoft.console.client.user.task.action.TaskExecutionCallbackBehavior;
+import org.bonitasoft.console.client.user.task.view.TaskExecutionEventListener;
 import org.bonitasoft.web.toolkit.client.common.TreeIndexed;
 import org.bonitasoft.web.toolkit.client.common.url.UrlSerializer;
 import org.bonitasoft.web.toolkit.client.eventbus.MainEventBus;
@@ -37,6 +41,8 @@ import com.google.gwt.user.client.ui.SimplePanel;
  */
 public class AngularIFrameView extends RawView {
 
+    public static final String CASE_LISTING_TOKEN = "caselistinguser";
+
     public static final String CASE_LISTING_ADMIN_TOKEN = "caselistingadmin";
 
     public static final String APPLICATION_LISTING_PAGE = "applicationslistingadmin";
@@ -49,7 +55,9 @@ public class AngularIFrameView extends RawView {
 
     public static final String CASE_LISTING_PROCESS_ID_TOKEN = "processId";
 
-    private final IFrameView iframe = new IFrameView();
+    public static final String TASK_LISTING_TOKEN = "tasklistinguser";
+
+    protected final IFrameView iframe;
 
     protected final static Map<String, List<String>> acceptedToken = initAcceptedTokens();
 
@@ -71,7 +79,7 @@ public class AngularIFrameView extends RawView {
 
     /**
      * get route associated to given token when it exists, null otherwise
-     * 
+     *
      * @param token the token to get the route from
      * @return the route
      */
@@ -89,6 +97,8 @@ public class AngularIFrameView extends RawView {
 
     public AngularIFrameView() {
 
+        iframe = createIFrame();
+
         MainEventBus.getInstance().addHandler(MenuClickEvent.TYPE, new MenuClickHandler() {
 
             @Override
@@ -98,6 +108,11 @@ public class AngularIFrameView extends RawView {
                 updateHash(angularParameterCleaner.getHashWithoutAngularParameters());
             }
         });
+    }
+
+    protected IFrameView createIFrame() {
+        return new IFrameView(new ProcessInstantiationEventListener(new ProcessInstantiationCallbackBehavior()),
+                new TaskExecutionEventListener(new TaskExecutionCallbackBehavior()));
     }
 
     /**
@@ -158,8 +173,8 @@ public class AngularIFrameView extends RawView {
      */
     protected String buildAngularUrl(final String url, final String token, final String queryString) {
         final AngularUrlBuilder angularUrlBuilder = new AngularUrlBuilder(url)
-        .appendQueryStringParameter(token + "_id", queryString + "&" + getHash())
-        .appendQueryStringParameter(token + "_tab", queryString + "&" + getHash());
+                .appendQueryStringParameter(token + "_id", queryString + "&" + getHash())
+                .appendQueryStringParameter(token + "_tab", queryString + "&" + getHash());
         if (acceptedToken.containsKey(token)) {
             for (final String param : acceptedToken.get(token)) {
                 angularUrlBuilder.appendQueryStringParameter(param, queryString + "&" + getHash());

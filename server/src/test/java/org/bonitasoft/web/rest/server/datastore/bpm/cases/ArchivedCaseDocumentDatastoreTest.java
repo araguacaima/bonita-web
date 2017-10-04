@@ -1,21 +1,18 @@
 package org.bonitasoft.web.rest.server.datastore.bpm.cases;
 
-
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.bonitasoft.console.common.server.preferences.constants.WebBonitaConstants;
 import org.bonitasoft.console.common.server.preferences.constants.WebBonitaConstantsUtils;
+import org.bonitasoft.console.common.server.preferences.properties.ConfigurationFilesManager;
 import org.bonitasoft.engine.api.ProcessAPI;
 import org.bonitasoft.engine.bpm.document.ArchivedDocument;
 import org.bonitasoft.engine.bpm.document.ArchivedDocumentNotFoundException;
@@ -30,9 +27,7 @@ import org.bonitasoft.web.rest.model.bpm.cases.ArchivedCaseDocumentItem;
 import org.bonitasoft.web.rest.model.bpm.cases.CaseDocumentItem;
 import org.bonitasoft.web.rest.server.APITestWithMock;
 import org.bonitasoft.web.toolkit.client.common.exception.api.APIException;
-import org.bonitasoft.web.toolkit.client.common.util.StringUtil;
 import org.bonitasoft.web.toolkit.client.data.APIID;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,30 +59,16 @@ public class ArchivedCaseDocumentDatastoreTest extends APITestWithMock {
     @Rule
     public ExpectedException expectedEx = ExpectedException.none();
 
-    private final CaseDocumentItem mockedDocumentItem = new CaseDocumentItem();
-
-    private String savedBonitaHomeProperty;
-
     @Before
     public void setUp() throws Exception {
+        ConfigurationFilesManager.getInstance()
+                .setTenantConfigurations(Collections.singletonMap("console-config.properties", "form.attachment.max.size=30".getBytes()), 1L);
         initMocks(this);
-        savedBonitaHomeProperty = System.getProperty(WebBonitaConstants.BONITA_HOME);
-        System.setProperty(WebBonitaConstants.BONITA_HOME, "target/bonita-home");
         when(engineSession.getTenantId()).thenReturn(1L);
         when(mockedDocument.getName()).thenReturn("Doc 1");
         when(mockedDocument.getId()).thenReturn(1L);
         documentDatastore = spy(new ArchivedCaseDocumentDatastore(engineSession, constantsValue, processAPI));
     }
-
-    @After
-    public void teardown() throws Exception {
-        if (StringUtil.isBlank(savedBonitaHomeProperty)) {
-            System.clearProperty(WebBonitaConstants.BONITA_HOME);
-        } else {
-            System.setProperty(WebBonitaConstants.BONITA_HOME, savedBonitaHomeProperty);
-        }
-    }
-
 
     // ---------- GET METHOD TESTS ------------------------------//
 
@@ -148,7 +129,7 @@ public class ArchivedCaseDocumentDatastoreTest extends APITestWithMock {
     public void it_should_call_buildSearchOptionCreator_method() throws SearchException {
         // Given
         when(processAPI.searchArchivedDocuments(any(SearchOptions.class))).thenReturn(mockedEngineSearchResults);
-        final Map<String, String> filters = new HashMap<String, String>();
+        final Map<String, String> filters = new HashMap<>();
         filters.put("submittedBy", "1");
 
         // When
@@ -162,7 +143,7 @@ public class ArchivedCaseDocumentDatastoreTest extends APITestWithMock {
     public void it_should_call_processAPI_searchDocuments_method() throws SearchException {
         // Given
         when(processAPI.searchArchivedDocuments(any(SearchOptions.class))).thenReturn(mockedEngineSearchResults);
-        final Map<String, String> filters = new HashMap<String, String>();
+        final Map<String, String> filters = new HashMap<>();
         filters.put("submittedBy", "1");
 
         // When
@@ -175,7 +156,7 @@ public class ArchivedCaseDocumentDatastoreTest extends APITestWithMock {
     // -------------DELETE METHOD TESTS ------------------------------------------//
     @Test
     public void it_should_delete_one_document() throws DocumentNotFoundException, DocumentException {
-        final List<APIID> docs = new ArrayList<APIID>();
+        final List<APIID> docs = new ArrayList<>();
         docs.add(APIID.makeAPIID(mockedDocument.getId()));
 
         // When
@@ -188,7 +169,7 @@ public class ArchivedCaseDocumentDatastoreTest extends APITestWithMock {
 
     @Test
     public void it_should_delete_two_documents() throws DocumentNotFoundException, DocumentException {
-        final List<APIID> docs = new ArrayList<APIID>();
+        final List<APIID> docs = new ArrayList<>();
         docs.add(APIID.makeAPIID(mockedDocument.getId()));
         docs.add(APIID.makeAPIID(mockedDocument.getId()));
 
@@ -203,9 +184,6 @@ public class ArchivedCaseDocumentDatastoreTest extends APITestWithMock {
     public void it_should_throw_an_exception_when_input_is_null() throws DocumentNotFoundException, DeletionException {
         expectedEx.expect(APIException.class);
         expectedEx.expectMessage("Error while deleting a document. Document id not specified in the request");
-
-        final List<APIID> docs = new ArrayList<APIID>();
-        docs.add(APIID.makeAPIID(mockedDocument.getId()));
 
         // When
         documentDatastore.delete(null);

@@ -23,10 +23,12 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.bonitasoft.forms.client.i18n.FormsResourceBundle;
 import org.bonitasoft.forms.client.model.FormFieldValue;
@@ -67,6 +69,7 @@ import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Element;
+import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Frame;
@@ -153,7 +156,7 @@ public class FormPagesViewController {
     /**
      * Map of form fields already displayed in the page flow
      */
-    protected Map<String, FormFieldWidget> fieldWidgets = new HashMap<String, FormFieldWidget>();
+    protected Map<String, FormFieldWidget> fieldWidgets = new TreeMap<String, FormFieldWidget>();
 
     /**
      * Map of form buttons already displayed in the page flow
@@ -215,6 +218,20 @@ public class FormPagesViewController {
      * The map of URL parameters
      */
     protected Map<String, Object> urlContext;
+
+    /**
+     * Widget type to focused when loading is hidden
+     *
+     */
+    protected List<WidgetType> widgetTypesToFocus = Arrays.asList(
+            WidgetType.TEXTAREA,
+            WidgetType.TEXTBOX,
+            WidgetType.SUGGESTBOX,
+            WidgetType.RICH_TEXTAREA,
+            WidgetType.SUGGESTBOX_ASYNC,
+            WidgetType.PASSWORD,
+            WidgetType.FILEUPLOAD
+            );
 
     /**
      * Constructor
@@ -392,9 +409,34 @@ public class FormPagesViewController {
             buildViewMode(pageHTMLPanel, formPage, hasAlreadyBeenDisplayed, isNextPage, onloadAttributeValue);
         }
         domUtils.overrideBrowserNativeInputs();
+        resizeFrame();
         domUtils.hideLoading();
+        focusFirstField();
 
     }
+
+    /**
+     * Focus the first field "focusable"
+     */
+    protected void focusFirstField() {
+        final Iterator<Entry<String, FormFieldWidget>> fieldWidgestIterator = fieldWidgets.entrySet().iterator();
+
+        boolean focused = false;
+        while (fieldWidgestIterator.hasNext() && !focused) {
+            final Entry<String, FormFieldWidget> reducedFormWidget = fieldWidgestIterator.next();
+            final FormFieldWidget formFieldWidget = reducedFormWidget.getValue();
+            if (formFieldWidget != null && widgetTypesToFocus.contains(formFieldWidget.getType())) {
+                if (formFieldWidget.getType().equals(WidgetType.RICH_TEXTAREA)) {
+                    formFieldWidget.getElement().focus();
+                } else {
+                    formFieldWidget.setFocusOn();
+                }
+                focused = true;
+            }
+        }
+
+    }
+
 
     /**
      * Insert the widgets in the page for the view mode
@@ -892,6 +934,7 @@ public class FormPagesViewController {
         }
         if (hideLoader) {
             domUtils.hideLoading();
+            focusFirstField();
         }
     }
 
@@ -1252,13 +1295,20 @@ public class FormPagesViewController {
      */
     protected class FormSubmissionHandler extends FormsAsyncCallback<Map<String, Object>> {
 
+        private final String actionForNotif;
+
+        public FormSubmissionHandler() {
+            super();
+            actionForNotif = domUtils.getActionForNotif(urlContext);
+        }
+
         /**
          * {@inheritDoc}
          */
         @Override
         public void onSuccess(final Map<String, Object> newContext) {
             if (domUtils.isPageInFrame()) {
-                domUtils.notifyParentFrame(getSubmitButtonID(), false);
+                domUtils.notifyParentFrameSuccess(actionForNotif);
             }
             if (!"false".equals(urlUtils.getHashParameter(URLUtils.DISPLAY_CONFIRMATION))) {
                 urlContext.clear();
@@ -1274,7 +1324,7 @@ public class FormPagesViewController {
             } catch (final FormAlreadySubmittedException e) {
                 final String errorMessage = FormsResourceBundle.getErrors().formAlreadySubmittedOrCancelledError();
                 if (domUtils.isPageInFrame()) {
-                    domUtils.notifyParentFrame("formAlreadySubmittedOrCancelledError", true);
+                    domUtils.notifyParentFrameError("formAlreadySubmittedOrCancelledError", actionForNotif);
                 }
                 if (!"false".equals(urlUtils.getHashParameter(URLUtils.DISPLAY_CONFIRMATION))) {
                     formsServiceAsync.getApplicationErrorTemplate(formID, urlContext, new ErrorPageHandler(applicationHTMLPanel, formID, pageHTMLPanel,
@@ -1290,7 +1340,7 @@ public class FormPagesViewController {
                     errorMessage = FormsResourceBundle.getErrors().fileTooBigErrorWithSize(maxSize);
                 }
                 if (domUtils.isPageInFrame()) {
-                    domUtils.notifyParentFrame("fileTooBigError", true);
+                    domUtils.notifyParentFrameError("fileTooBigError", actionForNotif);
                 }
                 if (!"false".equals(urlUtils.getHashParameter(URLUtils.DISPLAY_CONFIRMATION))) {
                     Window.alert(errorMessage);
@@ -1298,7 +1348,7 @@ public class FormPagesViewController {
             } catch (final Throwable t) {
                 final String errorMessage = FormsResourceBundle.getErrors().formSubmissionError();
                 if (domUtils.isPageInFrame()) {
-                    domUtils.notifyParentFrame("formSubmissionError", true);
+                    domUtils.notifyParentFrameError("formSubmissionError", actionForNotif);
                 }
                 if (!"false".equals(urlUtils.getHashParameter(URLUtils.DISPLAY_CONFIRMATION))) {
                     formsServiceAsync.getApplicationErrorTemplate(formID, urlContext, new ErrorPageHandler(applicationHTMLPanel, formID, pageHTMLPanel,
@@ -1308,6 +1358,21 @@ public class FormPagesViewController {
 
             enableButtons(true);
         }
+    }
+
+     /**
+     * If the page is contained in a form, resize the frame to fit the page height
+     */
+    protected void resizeFrame() {
+
+        final Timer timer = new Timer() {
+            @Override
+            public void run() {
+                if (domUtils.isPageInFrame()) {
+               }
+            }
+        };
+        timer.schedule(300);
     }
 
     public void setMandatoryFieldSymbol(final String mandatoryFieldSymbol) {
@@ -1332,7 +1397,7 @@ public class FormPagesViewController {
         } else {
             defaultConfirmationMessage = FormsResourceBundle.getMessages().submissionConfirmationMessage();
         }
-        formsServiceAsync.getFormConfirmationTemplate(formID, urlContext, createConfirmationPageHandler(defaultConfirmationMessage));
+        formsServiceAsync.getFormConfirmationTemplate(formID, urlContext, widgetValues, createConfirmationPageHandler(defaultConfirmationMessage));
     }
 
     private ConfirmationPageHandler createConfirmationPageHandler(final String defaultConfirmationMessage) {

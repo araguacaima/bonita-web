@@ -26,7 +26,6 @@
 @borderColor2: #a6a9b0;
 @borderColor3: #d9d9d9;
 @borderColor4: #ededed;
-@diagram-ready-bgColor:#267F00;
 
 @defaultRadius: 1*@w;
 @border-width: 1px;
@@ -44,6 +43,7 @@
 // 								BUTTONS											  //
 // ****************************************************************************** //
 @link-color: #337AB7;
+@link-disabled-color: #c2c2c2;
 
 @button-fontSize: 14;
 @button-paddingY: 1*@h;
@@ -351,7 +351,6 @@
 @tablesPanel-table-line-shadowColor: #c2c2c2;//rgba(0, 0, 0, 11%);
 @tablesPanel-table-line-margin : 0 0 @h*2 0;
 @tablesPanel-table-currentLine-arrow-width: 20px;
-@tablesPanel-table-currentLine-arrow-bg: "arrow-current.png";
 @tablesPanel-table-currentLine-background: #fff;
 @tablesPanel-table-currentLine-border:1px solid @tablesPanel-table-line-shadowColor;
 @tablesPanel-table-currentLine-shadow-background: "shadow-list-current.png";
@@ -491,7 +490,6 @@
 
 
 @filtersPanel-filtersCurrent-background: @tablesPanel-bgColor;
-@filtersPanel-filtersCurrent-bgArrow: "arrow-current.png";
 @filtersPanel-filtersCurrent-positionRight: -20px;
 @filtersPanel-filtersCurrent-link-textColor: @secondAccentColor;
 @filtersPanel-filtersCurrent-width: 30px;
@@ -762,7 +760,7 @@
 // ----------------------------------------------------------------------------
 // profile more details
 // ----------------------------------------------------------------------------
-@profileMoreDetails-linkEditor-padding: @table-cell-padding;
+@profileMoreDetails-linkEditor-padding: @table-cell-paddingY @table-cell-paddingX;
 @profileMoreDetails-linkEditor-border: @table-border;
 @profileMoreDetails-linkEditor-bg: #ffffff;
 @profileMoreDetails-addMenulink-margin: ((@header-menu-height - @button-globalHeight)/2) 1*@w;
@@ -1245,7 +1243,6 @@
 @table-header-cell-height: 4*@h;
 @table-cell-paddingX: 4*@w;
 @table-cell-paddingY: 3*@h;
-@table-cell-padding: @table-cell-paddingY @table-cell-paddingX;
 @table-cell-actions-margin: 0*@h 0*@w 0*@h 1em;
 @table-header-cell-paddingX:  4*@w;
 @table-header-cell-padding: 2*@h @table-header-cell-paddingX;

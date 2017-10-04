@@ -26,13 +26,12 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.CharEncoding;
 import org.bonitasoft.console.common.server.auth.AuthenticationFailedException;
 import org.bonitasoft.console.common.server.auth.AuthenticationManager;
-import org.bonitasoft.console.common.server.auth.AuthenticationManagerFactory;
 import org.bonitasoft.console.common.server.auth.AuthenticationManagerNotFoundException;
 import org.bonitasoft.console.common.server.login.HttpServletRequestAccessor;
 import org.bonitasoft.console.common.server.login.LoginFailedException;
 import org.bonitasoft.console.common.server.login.LoginManager;
-import org.bonitasoft.console.common.server.login.datastore.StandardCredentials;
-import org.bonitasoft.console.common.server.login.datastore.UserLogger;
+import org.bonitasoft.console.common.server.login.credentials.StandardCredentials;
+import org.bonitasoft.console.common.server.login.credentials.UserLogger;
 import org.bonitasoft.console.common.server.login.localization.RedirectUrlBuilder;
 import org.bonitasoft.console.common.server.utils.SessionUtil;
 import org.bonitasoft.console.common.server.utils.TenantsManagementUtils;
@@ -97,7 +96,7 @@ public class LoginServlet extends HttpServlet {
         final boolean redirectAfterLogin = hasRedirection(request);
         final String redirectURL = getRedirectUrl(request, redirectAfterLogin);
         try {
-            doLogin(request);
+            doLogin(request, response);
             final APISession apiSession = (APISession) request.getSession().getAttribute(SessionUtil.API_SESSION_PARAM_KEY);
             // if there a redirect=false attribute in the request do nothing (API login), otherwise, redirect (Portal login)
             if (redirectAfterLogin) {
@@ -178,13 +177,13 @@ public class LoginServlet extends HttpServlet {
         return new RedirectUrlBuilder(redirectURL).build().getUrl();
     }
 
-    protected void doLogin(final HttpServletRequest request) throws AuthenticationManagerNotFoundException, LoginFailedException, ServletException {
+    protected void doLogin(final HttpServletRequest request, HttpServletResponse response) throws AuthenticationManagerNotFoundException, LoginFailedException, ServletException {
         try {
             final long tenantId = getTenantId(request);
             final HttpServletRequestAccessor requestAccessor = new HttpServletRequestAccessor(request);
             final StandardCredentials userCredentials = createUserCredentials(tenantId, requestAccessor);
             final LoginManager loginManager = getLoginManager();
-            loginManager.login(requestAccessor, createUserLogger(), userCredentials);
+            loginManager.login(requestAccessor, response, createUserLogger(), userCredentials);
         } catch (final AuthenticationFailedException e) {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.log(Level.FINE, "Authentication failed : " + e.getMessage(), e);
@@ -202,10 +201,6 @@ public class LoginServlet extends HttpServlet {
 
     protected StandardCredentials createUserCredentials(final long tenantId, final HttpServletRequestAccessor requestAccessor) {
         return new StandardCredentials(requestAccessor.getUsername(), requestAccessor.getPassword(), tenantId);
-    }
-
-    protected AuthenticationManager getLoginManager(final long tenantId) throws AuthenticationManagerNotFoundException {
-        return AuthenticationManagerFactory.getAuthenticationManager(tenantId);
     }
 
     protected UserLogger createUserLogger() {

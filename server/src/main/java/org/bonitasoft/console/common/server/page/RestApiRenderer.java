@@ -18,14 +18,21 @@ import java.io.File;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import javax.servlet.http.HttpServletRequest;
 
-import groovy.lang.GroovyClassLoader;
+import org.bonitasoft.console.common.server.page.extension.PageContextImpl;
+import org.bonitasoft.console.common.server.page.extension.PageResourceProviderImpl;
+import org.bonitasoft.console.common.server.page.extension.RestAPIContextImpl;
+import org.bonitasoft.console.common.server.page.extension.RestApiUtilImpl;
+import org.bonitasoft.engine.api.APIClient;
 import org.bonitasoft.engine.exception.BonitaException;
 import org.bonitasoft.engine.page.Page;
 import org.bonitasoft.engine.session.APISession;
 import org.bonitasoft.web.rest.server.api.extension.ResourceExtensionResolver;
 import org.codehaus.groovy.control.CompilationFailedException;
+
+import groovy.lang.GroovyClassLoader;
 
 /**
  * Class used by servlets to display a custom rest api
@@ -43,45 +50,60 @@ public class RestApiRenderer {
             throws CompilationFailedException, InstantiationException, IllegalAccessException, IOException, BonitaException {
         final PageContextHelper pageContextHelper = new PageContextHelper(request);
         final APISession apiSession = pageContextHelper.getApiSession();
-        Long pageId = resourceExtensionResolver.resolvePageId(apiSession);
+        final Long pageId = resourceExtensionResolver.resolvePageId(apiSession);
         final Page page = customPageService.getPage(apiSession, pageId);
-        final PageResourceProvider pageResourceProvider = new PageResourceProvider(page, apiSession.getTenantId());
+        final PageResourceProviderImpl pageResourceProvider = new PageResourceProviderImpl(page, apiSession.getTenantId());
         customPageService.ensurePageFolderIsUpToDate(apiSession, pageResourceProvider);
-        String classFileName = resourceExtensionResolver.resolveClassFileName(pageResourceProvider);
+        final File restApiControllerFile = resourceExtensionResolver.resolveRestApiControllerFile(pageResourceProvider);
         final String mappingKey = resourceExtensionResolver.generateMappingKey();
-        if (isFileGroovyPage(pageResourceProvider, classFileName)) {
-            return renderResponse(request, apiSession, pageContextHelper, pageResourceProvider, classFileName, mappingKey);
+        if (restApiControllerFile.exists()) {
+            return renderResponse(request, apiSession, pageContextHelper, pageResourceProvider, restApiControllerFile, mappingKey);
         }
         LOGGER.log(Level.SEVERE, "resource does not exists:" + mappingKey);
         throw new BonitaException("unable to handle rest api call to " + mappingKey);
     }
 
-    private boolean isFileGroovyPage(final PageResourceProvider pageResourceProvider, String classFileName) {
-        final File pageFolder = pageResourceProvider.getPageDirectory();
-        final File indexGroovy = customPageService.getPageFile(pageFolder, classFileName);
-        return indexGroovy.exists();
-    }
-
     private RestApiResponse renderResponse(final HttpServletRequest request, final APISession apiSession, final PageContextHelper pageContextHelper,
-                                           final PageResourceProvider pageResourceProvider, String classFileName, String mappingKey)
-            throws CompilationFailedException, InstantiationException, IllegalAccessException, IOException, BonitaException {
+            final PageResourceProviderImpl pageResourceProvider, File restApiControllerFile, String mappingKey)
+                    throws CompilationFailedException, InstantiationException, IllegalAccessException, IOException, BonitaException {
         final ClassLoader originalClassloader = Thread.currentThread().getContextClassLoader();
         final GroovyClassLoader pageClassloader = customPageService.getPageClassloader(apiSession, pageResourceProvider);
         try {
             Thread.currentThread().setContextClassLoader(pageClassloader);
-            final Class<RestApiController> restApiControllerClass = customPageService.registerRestApiPage(pageClassloader, pageResourceProvider, classFileName);
-            final RestApiController restApiController = customPageService.loadRestApiPage(restApiControllerClass);
+            final Class<?> restApiControllerClass = customPageService.registerRestApiPage(pageClassloader, restApiControllerFile);
             pageResourceProvider.setResourceClassLoader(pageClassloader);
             try {
-                return restApiController.doHandle(request, pageResourceProvider,
-                        new PageContext(apiSession, pageContextHelper.getCurrentLocale(), pageContextHelper.getCurrentProfile()), new RestApiResponseBuilder(), new RestApiUtilImpl());
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "error when executing rest api call to " + mappingKey, e);
+                return doHandle(request, apiSession, pageContextHelper, pageResourceProvider, restApiControllerClass);
+            } catch (Throwable e) {
+                LOGGER.log(Level.SEVERE, "Error when executing rest api extension call to " + mappingKey, e);
                 throw e;
             }
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassloader);
         }
+    }
+
+    protected RestApiResponse doHandle(final HttpServletRequest request,
+            final APISession apiSession,
+            final PageContextHelper pageContextHelper,
+            final PageResourceProviderImpl pageResourceProvider,
+            final Class<?> restApiControllerClass) throws InstantiationException, IllegalAccessException {
+        if (RestApiController.class.isAssignableFrom(restApiControllerClass)) {//LEGACY MODE
+            final RestApiController restApiController = instantiate(restApiControllerClass, RestApiController.class);
+            return restApiController.doHandle(request, pageResourceProvider,
+                    new PageContextImpl(apiSession, pageContextHelper.getCurrentLocale(), pageContextHelper.getCurrentProfile()),
+                    new RestApiResponseBuilder(), new RestApiUtilImpl());
+        } else {
+            final org.bonitasoft.web.extension.rest.RestApiController restApiController = instantiate(restApiControllerClass,
+                    org.bonitasoft.web.extension.rest.RestApiController.class);
+            return restApiController.doHandle(request,
+                    new org.bonitasoft.web.extension.rest.RestApiResponseBuilder(),
+                    new RestAPIContextImpl(apiSession, new APIClient(apiSession), pageContextHelper.getCurrentLocale(), pageResourceProvider));
+        }
+    }
+
+    protected <T extends Object> T instantiate(Class<?> baseClass, Class<T> toClass) throws InstantiationException, IllegalAccessException {
+        return (T) baseClass.newInstance();
     }
 
 }

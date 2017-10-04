@@ -77,9 +77,9 @@
 	<div class="wrap">
 		<div>
 			<img src="<%=getServletConfig().getServletContext().getContextPath()%>/images/error-red-circle.png">
-			<p id="statuscode">500</div>
-			<p id="message"><%=(exception.getCause() != null) ? exception.getCause().getClass().getName() : exception.getClass().getName()%></p>
-			<p id="error">Oops. Error.</p>			
+			<p id="statuscode">500</p>
+			<p id="message">Internal Server Error</p>
+			<p id="error">Oops. Error.</p>
 		</div>
 	</div>
 </body>

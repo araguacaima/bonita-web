@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
-import org.bonitasoft.console.common.server.page.CustomPageService;
 import org.bonitasoft.console.common.server.preferences.constants.WebBonitaConstantsUtils;
 import org.bonitasoft.console.common.server.preferences.properties.PropertiesFactory;
 import org.bonitasoft.console.common.server.preferences.properties.ResourcesPermissionsMapping;
@@ -39,15 +38,15 @@ public class APIPageIntegrationTest extends AbstractConsoleTest {
     public static final String PAGE_API_EXTENSION_UPDATE_ZIP = "/pageApiExtensionUpdate.zip";
     public static final String NEW_PAGE_ZIP = "/newPage.zip";
     private APIPage apiPage;
-    private CustomPageService customPageService;
     private ResourcesPermissionsMapping resourcesPermissionsMapping;
 
     @After
     public void cleanPages() throws Exception {
         final SearchOptions searchOptions = new SearchOptionsBuilder(0, 100000).done();
         for (Page page : getPageAPI().searchPages(searchOptions).getResult()) {
-            getPageAPI().deletePage(page.getId());
-            customPageService.removePage(getInitiator().getSession(), page.getName());
+            final List<APIID> ids = new ArrayList<>();
+            ids.add(APIID.makeAPIID(page.getId()));
+            apiPage.delete(ids);
         }
     }
 
@@ -56,8 +55,6 @@ public class APIPageIntegrationTest extends AbstractConsoleTest {
         apiPage = new APIPage();
         final APISession session = getInitiator().getSession();
         apiPage.setCaller(getAPICaller(session, "API/portal/page"));
-
-        customPageService = new CustomPageService();
 
         resourcesPermissionsMapping = PropertiesFactory.getResourcesPermissionsMapping(session
                 .getTenantId());
@@ -121,7 +118,7 @@ public class APIPageIntegrationTest extends AbstractConsoleTest {
     }
 
     @Test
-    public void runUpdate_with_new_page_content_change_it_in_bonita_home() throws Exception {
+    public void runUpdate_with_new_page_content_change_it() throws Exception {
         // Given
         final PageItem pageToBeUpdated = addNewPage(NEW_PAGE_ZIP);
 
@@ -176,7 +173,7 @@ public class APIPageIntegrationTest extends AbstractConsoleTest {
     @Test
     public void should_update_rest_api_extension_change_resource_permission() throws Exception {
         // Given
-        final PageItem pageItem =apiPage.add(aPageItem().withZip(PAGE_API_EXTENSION_ZIP).build(getTenantId()));
+        final PageItem pageItem = apiPage.add(aPageItem().withZip(PAGE_API_EXTENSION_ZIP).build(getTenantId()));
         assertThat(resourcesPermissionsMapping.getProperty("GET|extension/rest")).as("should not have permission before add").isEqualTo(
                 "[permission1,permission2]");
         assertThat(resourcesPermissionsMapping.getProperty("POST|extension/restUpdated")).as("should not have permission before add").isNull();

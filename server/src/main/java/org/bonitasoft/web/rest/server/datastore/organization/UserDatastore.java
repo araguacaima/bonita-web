@@ -17,6 +17,7 @@ package org.bonitasoft.web.rest.server.datastore.organization;
 import java.util.List;
 import java.util.Map;
 
+import org.bonitasoft.console.common.server.utils.BonitaHomeFolderAccessor;
 import org.bonitasoft.engine.exception.SearchException;
 import org.bonitasoft.engine.identity.User;
 import org.bonitasoft.engine.identity.UserCreator;
@@ -30,7 +31,6 @@ import org.bonitasoft.web.rest.server.datastore.utils.SearchOptionsCreator;
 import org.bonitasoft.web.rest.server.datastore.utils.Sorts;
 import org.bonitasoft.web.rest.server.engineclient.EngineAPIAccessor;
 import org.bonitasoft.web.rest.server.engineclient.EngineClientFactory;
-import org.bonitasoft.web.rest.server.engineclient.FlowNodeEngineClient;
 import org.bonitasoft.web.rest.server.engineclient.ProcessEngineClient;
 import org.bonitasoft.web.rest.server.engineclient.UserEngineClient;
 import org.bonitasoft.web.rest.server.framework.api.DatastoreHasGet;
@@ -60,15 +60,19 @@ public class UserDatastore extends CommonDatastore<UserItem, User>
     // //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public UserItem add(final UserItem user) {
-        UserCreator userCreator = new UserCreatorConverter().convert(user);
+        UserCreator userCreator = new UserCreatorConverter().convert(user, getEngineSession().getTenantId());
         User createdUser = getUserEngineClient().create(userCreator);
         return userItemConverter.convert(createdUser);
     }
 
     public UserItem update(final APIID id, final Map<String, String> attributes) {
-        UserUpdater userUpdater = new UserUpdaterConverter().convert(attributes);
+        UserUpdater userUpdater = new UserUpdaterConverter().convert(attributes, getEngineSession().getTenantId(), getBonitaHomeFolderAccessor());
         User user = getUserEngineClient().update(id.toLong(), userUpdater);
         return userItemConverter.convert(user);
+    }
+
+    BonitaHomeFolderAccessor getBonitaHomeFolderAccessor() {
+        return new BonitaHomeFolderAccessor();
     }
 
     @Override
@@ -81,19 +85,19 @@ public class UserDatastore extends CommonDatastore<UserItem, User>
      * Search for users
      *
      * @param page
-     *            The page to display
+     *        The page to display
      * @param resultsByPage
-     *            The number of results by page
+     *        The number of results by page
      * @param search
-     *            Search terms
+     *        Search terms
      * @param filters
-     *            The filters to doAuthorize. There will be an AND operand between filters.
+     *        The filters to doAuthorize. There will be an AND operand between filters.
      * @param orders
-     *            The order to doAuthorize to the search
+     *        The order to doAuthorize to the search
      * @return This method returns an ItemSearch result containing the returned data and information about the total possible results.
      */
     public ItemSearchResult<UserItem> search(final int page, final int resultsByPage, final String search,
-                                             final Map<String, String> filters, final String orders) {
+            final Map<String, String> filters, final String orders) {
 
         if (filters.containsKey(UserItem.FILTER_PROCESS_ID)) {
             String processId = filters.get(UserItem.FILTER_PROCESS_ID);
@@ -110,20 +114,20 @@ public class UserDatastore extends CommonDatastore<UserItem, User>
     }
 
     private ItemSearchResult<UserItem> searchUsers(final int page, final int resultsByPage, final String search,
-                                                   final Map<String, String> filters, final String orders) {
+            final Map<String, String> filters, final String orders) {
 
         SearchOptionsCreator searchOptionsCreator = buildSearchOptionCreator(page,
                 resultsByPage, search, filters, orders);
 
         SearchResult<User> engineSearchResults = getUserEngineClient().search(searchOptionsCreator.create());
 
-        return new ItemSearchResult<UserItem>(page, resultsByPage, engineSearchResults.getCount(),
+        return new ItemSearchResult<>(page, resultsByPage, engineSearchResults.getCount(),
                 userItemConverter.convert(engineSearchResults.getResult()));
 
     }
 
     protected ItemSearchResult<UserItem> searchUsersWhoCanStartProcess(final String processId, final int page, final int resultsByPage, final String search,
-                                                                       final Map<String, String> filters, final String orders) {
+            final Map<String, String> filters, final String orders) {
 
         SearchOptionsCreator searchOptionsCreator = buildSearchOptionCreator(page,
                 resultsByPage, search, filters, orders);
@@ -138,13 +142,13 @@ public class UserDatastore extends CommonDatastore<UserItem, User>
             throw new APIException(e);
         }
 
-        return new ItemSearchResult<UserItem>(page, resultsByPage, engineSearchResults.getCount(),
+        return new ItemSearchResult<>(page, resultsByPage, engineSearchResults.getCount(),
                 userItemConverter.convert(engineSearchResults.getResult()));
 
     }
 
     protected ItemSearchResult<UserItem> searchUsersWhoCanPerformTask(final String taskId, final int page, final int resultsByPage, final String search,
-                                                                      final Map<String, String> filters, final String orders) {
+            final Map<String, String> filters, final String orders) {
 
         SearchResult<User> engineSearchResults;
         try {
@@ -157,14 +161,14 @@ public class UserDatastore extends CommonDatastore<UserItem, User>
             throw new APIAttributeException(UserItem.FILTER_HUMAN_TASK_ID, "Cannot convert human task id: " + taskId + " into long.");
         }
 
-        return new ItemSearchResult<UserItem>(page, resultsByPage, engineSearchResults.getCount(),
+        return new ItemSearchResult<>(page, resultsByPage, engineSearchResults.getCount(),
                 userItemConverter.convert(engineSearchResults.getResult()));
 
     }
 
     private SearchOptionsCreator buildSearchOptionCreator(final int page,
-                                                          final int resultsByPage, final String search,
-                                                          final Map<String, String> filters, final String orders) {
+            final int resultsByPage, final String search,
+            final Map<String, String> filters, final String orders) {
         SearchOptionsCreator searchOptionsCreator = new SearchOptionsCreator(page, resultsByPage, search,
                 new Sorts(orders, new UserSearchAttributeConverter()),
                 new Filters(filters, new UserFilterCreator()));
@@ -185,16 +189,12 @@ public class UserDatastore extends CommonDatastore<UserItem, User>
     // //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // protected for tests
-    protected UserEngineClient getUserEngineClient() {
+    UserEngineClient getUserEngineClient() {
         return engineClientFactory.createUserEngineClient();
     }
 
-    protected ProcessEngineClient getProcessEngineClient() {
+    ProcessEngineClient getProcessEngineClient() {
         return engineClientFactory.createProcessEngineClient();
-    }
-
-    protected FlowNodeEngineClient getFlowNodeEngineClient() {
-        return engineClientFactory.createFlowNodeEngineClient();
     }
 
     @Override

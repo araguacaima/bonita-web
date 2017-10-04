@@ -14,12 +14,8 @@
  */
 package org.bonitasoft.console.common.server.page;
 
-import groovy.lang.GroovyClassLoader;
-
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -31,12 +27,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
+import org.bonitasoft.console.common.server.page.extension.PageResourceProviderImpl;
 import org.bonitasoft.console.common.server.preferences.constants.WebBonitaConstantsUtils;
 import org.bonitasoft.console.common.server.preferences.properties.CompoundPermissionsMapping;
+import org.bonitasoft.console.common.server.preferences.properties.ConsoleProperties;
 import org.bonitasoft.console.common.server.preferences.properties.PropertiesFactory;
+import org.bonitasoft.console.common.server.preferences.properties.PropertiesWithSet;
 import org.bonitasoft.console.common.server.preferences.properties.ResourcesPermissionsMapping;
-import org.bonitasoft.console.common.server.preferences.properties.SimpleProperties;
 import org.bonitasoft.console.common.server.utils.UnzipUtil;
 import org.bonitasoft.engine.api.PageAPI;
 import org.bonitasoft.engine.api.TenantAPIAccessor;
@@ -51,7 +48,10 @@ import org.bonitasoft.engine.page.ContentType;
 import org.bonitasoft.engine.page.Page;
 import org.bonitasoft.engine.page.PageNotFoundException;
 import org.bonitasoft.engine.session.APISession;
+import org.bonitasoft.web.extension.page.PageResourceProvider;
 import org.codehaus.groovy.control.CompilationFailedException;
+
+import groovy.lang.GroovyClassLoader;
 
 /**
  * @author Anthony Birembaut, Fabio Lombardi
@@ -78,8 +78,6 @@ public class CustomPageService {
 
     private static final Map<String, GroovyClassLoader> PAGES_CLASSLOADERS = new HashMap<>();
 
-    private static final Map<String, File> PAGES_LIB_DIRECTORIES = new HashMap<>();
-
     public static final String RESOURCES_PROPERTY = "resources";
     public static final String PROPERTY_CONTENT_TYPE = "contentType";
     public static final String PROPERTY_API_EXTENSIONS = "apiExtensions";
@@ -94,7 +92,7 @@ public class CustomPageService {
 
     public GroovyClassLoader getPageClassloader(final APISession apiSession, final PageResourceProvider pageResourceProvider)
             throws IOException, CompilationFailedException, BonitaException {
-        return buildPageClassloader(apiSession, pageResourceProvider);
+        return buildPageClassloader(apiSession, pageResourceProvider.getFullPageName(), pageResourceProvider.getPageDirectory());
     }
 
     public void ensurePageFolderIsPresent(final APISession apiSession, final PageResourceProvider pageResourceProvider) throws BonitaException, IOException {
@@ -124,27 +122,32 @@ public class CustomPageService {
     }
 
     @SuppressWarnings("unchecked")
-    public Class<PageController> registerPage(final GroovyClassLoader pageClassLoader, final PageResourceProvider pageResourceProvider)
+    public Class<?> registerPage(final GroovyClassLoader pageClassLoader, final PageResourceProvider pageResourceProvider)
             throws CompilationFailedException, IOException {
         final File pageControllerFile = getGroovyPageFile(pageResourceProvider.getPageDirectory());
         return pageClassLoader.parseClass(pageControllerFile);
     }
 
-    public Class<RestApiController> registerRestApiPage(final GroovyClassLoader pageClassLoader, final PageResourceProvider pageResourceProvider, final String classFileName)
+    public Class<?> registerRestApiPage(final GroovyClassLoader pageClassLoader, final File restApiControllerFile)
             throws CompilationFailedException, IOException {
-        final File PageControllerFile = getPageFile(pageResourceProvider.getPageDirectory(), classFileName);
-        return pageClassLoader.parseClass(PageControllerFile);
+        return pageClassLoader.parseClass(restApiControllerFile);
     }
 
-    public void verifyPageClass(final File tempPageDirectory) throws IOException, CompilationFailedException {
+    public void verifyPageClass(final File tempPageDirectory, APISession session) throws IOException {
         final File pageControllerFile = getPageFile(tempPageDirectory, PAGE_CONTROLLER_FILENAME);
         if (pageControllerFile.exists()) {
-            final GroovyClassLoader pageClassLoader = new GroovyClassLoader();
-            final File customPageLibDirectory = getCustomPageLibDirectory(tempPageDirectory);
-            if (customPageLibDirectory.exists()) {
-                addLibsToClassPath(customPageLibDirectory, pageClassLoader);
+            final String classloaderName = String.valueOf(System.currentTimeMillis());
+            final GroovyClassLoader pageClassLoader = buildPageClassloader(session, classloaderName, tempPageDirectory);
+            try {
+                pageClassLoader.parseClass(pageControllerFile);
+            } catch (final CompilationFailedException ex) {
+                LOGGER.log(Level.SEVERE, "Failed to compile Index.groovy ", ex);
+            } finally {
+                final GroovyClassLoader classLoader = PAGES_CLASSLOADERS.remove(classloaderName);
+                if (classLoader != null) {
+                    classLoader.close();
+                }
             }
-            pageClassLoader.parseClass(pageControllerFile);
         }
     }
 
@@ -157,84 +160,73 @@ public class CustomPageService {
     }
 
     public void removePage(final APISession apiSession, final String pageName) throws IOException {
-        PAGES_CLASSLOADERS.remove(pageName);
-        final PageResourceProvider pageResourceProvider = new PageResourceProvider(pageName, apiSession.getTenantId());
+        closeClassloader(pageName);
+        final PageResourceProvider pageResourceProvider = new PageResourceProviderImpl(pageName, apiSession.getTenantId());
         removePageZipContent(apiSession, pageResourceProvider);
-        removePageLibTempFolder(pageName);
+        CustomPageDependenciesResolver.removePageLibTempFolder(pageName);
     }
 
-    protected void removePageLibTempFolder(final String pageName) {
-        final File libTempFolder = PAGES_LIB_DIRECTORIES.get(pageName);
-        if (libTempFolder != null) {
-            try {
-                FileUtils.deleteDirectory(libTempFolder);
-            } catch (final IOException e) {
-                if (LOGGER.isLoggable(Level.WARNING)) {
-                    LOGGER.log(Level.WARNING, "The custom page temporary lib directory " + libTempFolder.getPath()
-                            + " cannot be deleted. This is likely to be due to a JDK bug on Windows. You can safely delete it after a server restart.");
-                }
-            }
+    public void removePage(final APISession apiSession, final Page page) throws IOException {
+        final PageResourceProvider pageResourceProvider = new PageResourceProviderImpl(page, apiSession.getTenantId());
+        final String pageName = pageResourceProvider.getFullPageName();
+        closeClassloader(pageName);
+        removePageZipContent(apiSession, pageResourceProvider);
+        CustomPageDependenciesResolver.removePageLibTempFolder(pageName);
+    }
+
+    private static void closeClassloader(final String pageName) throws IOException {
+        final GroovyClassLoader classloader = PAGES_CLASSLOADERS.remove(pageName);
+        if (classloader != null) {
+            classloader.clearCache();
+            classloader.close();
         }
     }
 
     protected void retrievePageZipContent(final APISession apiSession, final String pageName) throws BonitaException, IOException {
-        final PageResourceProvider pageResourceProvider = new PageResourceProvider(pageName, apiSession.getTenantId());
+        final PageResourceProviderImpl pageResourceProvider = new PageResourceProviderImpl(pageName, apiSession.getTenantId());
         retrievePageZipContent(apiSession, pageResourceProvider);
     }
 
-    protected GroovyClassLoader buildPageClassloader(final APISession apiSession, final PageResourceProvider pageResourceProvider)
+    protected GroovyClassLoader buildPageClassloader(final APISession apiSession, final String pageName, final File pageDirectory)
             throws CompilationFailedException, IOException {
-        GroovyClassLoader pageClassLoader = PAGES_CLASSLOADERS.get(pageResourceProvider.getFullPageName());
-        if (pageClassLoader == null || PropertiesFactory.getConsoleProperties(apiSession.getTenantId()).isPageInDebugMode()) {
-            final File customPageLibDirectory = getCustomPageLibDirectory(pageResourceProvider.getPageDirectory());
-            final ClassLoader parentClassLoader;
-            if (customPageLibDirectory.exists()) {
-                File libTempFolder = null;
-                libTempFolder = getPageFile(WebBonitaConstantsUtils.getInstance(apiSession.getTenantId()).getTempFolder(), pageResourceProvider.getPageName()
-                        + Long.toString(new Date().getTime()));
-                // FileUtils.copyDirectory(customPageLibDirectory, libTempFolder);
-                removePageLibTempFolder(pageResourceProvider.getPageName());
-                PAGES_LIB_DIRECTORIES.put(pageResourceProvider.getPageName(), libTempFolder);
-                parentClassLoader = getParentClassloader(pageResourceProvider.getPageName(), customPageLibDirectory, libTempFolder.getAbsolutePath());
-            } else {
-                parentClassLoader = Thread.currentThread().getContextClassLoader();
-            }
-            pageClassLoader = new GroovyClassLoader(parentClassLoader);
-            PAGES_CLASSLOADERS.put(pageResourceProvider.getPageName(), pageClassLoader);
+        GroovyClassLoader pageClassLoader = PAGES_CLASSLOADERS.get(pageName);
+        final BDMClientDependenciesResolver bdmDependenciesResolver = new BDMClientDependenciesResolver(apiSession);
+        if (pageClassLoader == null
+                || getConsoleProperties(apiSession).isPageInDebugMode()
+                || isOutdated(pageClassLoader, bdmDependenciesResolver)) {
+            pageClassLoader = new GroovyClassLoader(getParentClassloader(pageName,
+                    new CustomPageDependenciesResolver(pageName, pageDirectory, getWebBonitaConstantsUtils(apiSession)),
+                    bdmDependenciesResolver));
+            pageClassLoader.addClasspath(pageDirectory.getPath());
+            PAGES_CLASSLOADERS.put(pageName, pageClassLoader);
         }
         return pageClassLoader;
     }
 
-    protected ClassLoader getParentClassloader(final String pageName, final File customPageLibDirectory, final String libTempFolder) throws IOException {
-        return new ChildFirstClassLoader(loadLibraries(customPageLibDirectory), pageName, libTempFolder, Thread.currentThread().getContextClassLoader());
+    private boolean isOutdated(GroovyClassLoader pageClassLoader, BDMClientDependenciesResolver bdmDependenciesResolver) {
+        final ClassLoader parent = pageClassLoader.getParent();
+        if (!(parent instanceof VersionedClassloader)) {
+            throw new IllegalStateException("Parent classloader should be versioned.");
+        }
+        final VersionedClassloader cachedClassloader = (VersionedClassloader) parent;
+        return !cachedClassloader.hasVersion(bdmDependenciesResolver.getBusinessDataModelVersion());
     }
 
-    private static Map<String, byte[]> loadLibraries(final File clientLibDirectory) throws IOException {
+    protected ConsoleProperties getConsoleProperties(final APISession apiSession) {
+        return PropertiesFactory.getConsoleProperties(apiSession.getTenantId());
+    }
 
-        if (clientLibDirectory != null && clientLibDirectory.exists()) {
-            final File[] libFiles = clientLibDirectory.listFiles();
-            final Map<String, byte[]> result = new HashMap<String, byte[]>(libFiles.length);
-            for (int i = 0; i < libFiles.length; i++) {
+    protected WebBonitaConstantsUtils getWebBonitaConstantsUtils(final APISession apiSession) {
+        return WebBonitaConstantsUtils.getInstance(apiSession.getTenantId());
+    }
 
-                final File currentFile = libFiles[i];
-                final String name = currentFile.getName();
-
-                InputStream currentInputStream = null;
-                try {
-                    currentInputStream = new FileInputStream(currentFile);
-                    final byte[] content = IOUtils.toByteArray(currentInputStream);
-
-                    result.put(name, content);
-                } finally {
-                    if (currentInputStream != null) {
-                        currentInputStream.close();
-                    }
-                }
-            }
-            return result;
-        } else {
-            return Collections.emptyMap();
-        }
+    protected ClassLoader getParentClassloader(final String pageName,
+            final CustomPageDependenciesResolver customPageDependenciesResolver,
+            final BDMClientDependenciesResolver bdmDependenciesResolver) throws IOException {
+        final CustomPageChildFirstClassLoader classLoader = new CustomPageChildFirstClassLoader(pageName, customPageDependenciesResolver,
+                bdmDependenciesResolver, Thread.currentThread().getContextClassLoader());
+        classLoader.addCustomPageResources();
+        return classLoader;
     }
 
     protected void addLibsToClassPath(final File customPageLibDirectory, final GroovyClassLoader groovyClassLoader) {
@@ -251,8 +243,12 @@ public class CustomPageService {
         // retrieve page zip content from engine and cache it
         final Page page = pageResourceProvider.getPage(pageAPI);
         final byte[] pageContent = pageAPI.getPageContent(page.getId());
-        FileUtils.writeByteArrayToFile(pageResourceProvider.getTempPageFile(), pageContent);
-        UnzipUtil.unzip(pageResourceProvider.getTempPageFile(), pageResourceProvider.getPageDirectory().getPath(), true);
+        if (pageContent.length == 0) {
+            throw new BonitaException("No content available for page: " + page.getName());
+        }
+        final File tempPageFile = ((PageResourceProviderImpl) pageResourceProvider).getTempPageFile();
+        FileUtils.writeByteArrayToFile(tempPageFile, pageContent);
+        UnzipUtil.unzip(tempPageFile, pageResourceProvider.getPageDirectory().getPath(), true);
         final File timestampFile = getPageFile(pageResourceProvider.getPageDirectory(), LASTUPDATE_FILENAME);
         long lastUpdateTimestamp = 0L;
         if (page.getLastModificationDate() != null) {
@@ -298,8 +294,8 @@ public class CustomPageService {
 
     public Properties getPageProperties(final APISession apiSession, final byte[] zipContent, final boolean checkIfItAlreadyExists,
             final Long processDefinitionId) throws InvalidPageZipMissingPropertiesException, InvalidPageZipMissingIndexException,
-            InvalidPageZipInconsistentException,
-            InvalidPageZipMissingAPropertyException, InvalidPageTokenException, AlreadyExistsException, BonitaException {
+                    InvalidPageZipInconsistentException,
+                    InvalidPageZipMissingAPropertyException, InvalidPageTokenException, AlreadyExistsException, BonitaException {
         final PageAPI pageAPI = getPageAPI(apiSession);
         Properties properties;
         if (processDefinitionId == null) {
@@ -325,17 +321,12 @@ public class CustomPageService {
         return properties;
     }
 
-    public Set<String> getCustomPagePermissions(final Properties properties, final ResourcesPermissionsMapping resourcesPermissionsMapping,
+    public Set<String> getCustomPagePermissions(final Properties pageProperties, final ResourcesPermissionsMapping resourcesPermissionsMapping,
             final boolean alsoReturnResourcesNotFound) {
-        final SimpleProperties pageProperties = new SimpleProperties(properties);
-        return getCustomPagePermissions(pageProperties, resourcesPermissionsMapping, alsoReturnResourcesNotFound);
-    }
-
-    protected Set<String> getCustomPagePermissions(final SimpleProperties pageProperties, final ResourcesPermissionsMapping resourcesPermissionsMapping,
-            final boolean alsoReturnResourcesNotFound) {
-        final Set<String> pageRestResources = new HashSet<String>(pageProperties.getPropertyAsSet(RESOURCES_PROPERTY));
+        PropertiesWithSet pagePropertiesWithSet = new PropertiesWithSet(pageProperties);
+        final Set<String> pageRestResources = new HashSet<>(pagePropertiesWithSet.getPropertyAsSet(RESOURCES_PROPERTY));
         // pageRestResources.addAll(Arrays.asList(GET_SYSTEM_SESSION, GET_PORTAL_PROFILE, GET_IDENTITY_USER));
-        final Set<String> permissions = new HashSet<String>();
+        final Set<String> permissions = new HashSet<>();
         for (final String pageRestResource : pageRestResources) {
             final Set<String> resourcePermissions = resourcesPermissionsMapping.getPropertyAsSet(pageRestResource);
             if (Collections.emptySet().equals(resourcePermissions)) {
@@ -355,7 +346,7 @@ public class CustomPageService {
 
     public Set<String> getCustomPagePermissions(final File file, final ResourcesPermissionsMapping resourcesPermissionsMapping,
             final boolean alsoReturnResourcesNotFound) {
-        final SimpleProperties pageProperties = new SimpleProperties(file);
+        final PropertiesWithSet pageProperties = new PropertiesWithSet(file);
         return getCustomPagePermissions(pageProperties, resourcesPermissionsMapping, alsoReturnResourcesNotFound);
     }
 
@@ -375,8 +366,9 @@ public class CustomPageService {
         return getPageAPI(apiSession).getPage(pageId);
     }
 
-    public void removeRestApiExtensionPermissions(final ResourcesPermissionsMapping resourcesPermissionsMapping, final PageResourceProvider pageResourceProvider, final APISession apiSession) throws IOException, BonitaException {
-        ensurePageFolderIsUpToDate(apiSession,pageResourceProvider);
+    public void removeRestApiExtensionPermissions(final ResourcesPermissionsMapping resourcesPermissionsMapping,
+            final PageResourceProvider pageResourceProvider, final APISession apiSession) throws IOException, BonitaException {
+        ensurePageFolderIsUpToDate(apiSession, pageResourceProvider);
         final Map<String, String> permissionsMapping = getPermissionMapping(pageResourceProvider);
         for (final String key : permissionsMapping.keySet()) {
             resourcesPermissionsMapping.removeProperty(key);
@@ -384,8 +376,10 @@ public class CustomPageService {
 
     }
 
-    public void addRestApiExtensionPermissions(final ResourcesPermissionsMapping resourcesPermissionsMapping, final PageResourceProvider pageResourceProvider, final APISession apiSession) throws IOException, BonitaException {
-        ensurePageFolderIsUpToDate(apiSession,pageResourceProvider);
+    public void addRestApiExtensionPermissions(final ResourcesPermissionsMapping resourcesPermissionsMapping,
+            final PageResourceProvider pageResourceProvider,
+            final APISession apiSession) throws IOException, BonitaException {
+        ensurePageFolderIsUpToDate(apiSession, pageResourceProvider);
         final Map<String, String> permissionsMapping = getPermissionMapping(pageResourceProvider);
         for (final String key : permissionsMapping.keySet()) {
             resourcesPermissionsMapping.setProperty(key, permissionsMapping.get(key));
@@ -400,7 +394,7 @@ public class CustomPageService {
     }
 
     private Map<String, String> getApiExtensionResourcesPermissionsMapping(final File pagePropertyFile) {
-        final SimpleProperties pageProperties = new SimpleProperties(pagePropertyFile);
+        final Properties pageProperties = new PropertiesWithSet(pagePropertyFile);
         final Map<String, String> permissionsMap = new HashMap<>();
         if (ContentType.API_EXTENSION.equals(pageProperties.getProperty(PROPERTY_CONTENT_TYPE))) {
             final String apiExtensionList = pageProperties.getProperty(PROPERTY_API_EXTENSIONS);
@@ -416,6 +410,13 @@ public class CustomPageService {
     }
 
     public PageResourceProvider getPageResourceProvider(final Page page, final long tenantId) {
-        return new PageResourceProvider(page,tenantId);
+        return new PageResourceProviderImpl(page, tenantId);
+    }
+
+    public static void clearCachedClassloaders() throws IOException {
+        for (final String page : PAGES_CLASSLOADERS.keySet()) {
+            closeClassloader(page);
+        }
+
     }
 }

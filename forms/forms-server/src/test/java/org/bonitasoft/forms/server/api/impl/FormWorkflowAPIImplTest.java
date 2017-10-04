@@ -2,12 +2,14 @@ package org.bonitasoft.forms.server.api.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -15,7 +17,10 @@ import java.util.Map;
 import org.bonitasoft.console.common.server.utils.BPMEngineAPIUtil;
 import org.bonitasoft.engine.api.IdentityAPI;
 import org.bonitasoft.engine.api.ProcessAPI;
+import org.bonitasoft.engine.api.ProfileAPI;
 import org.bonitasoft.engine.bpm.flownode.HumanTaskInstance;
+import org.bonitasoft.engine.profile.Profile;
+import org.bonitasoft.engine.profile.ProfileCriterion;
 import org.bonitasoft.engine.session.APISession;
 import org.bonitasoft.forms.client.model.Expression;
 import org.bonitasoft.forms.client.model.FormAction;
@@ -73,14 +78,12 @@ public class FormWorkflowAPIImplTest {
 
     @Test
     public void should_canUserSeeProcessInstance_call_engine_api() throws Exception {
-        final boolean expected = true;
-        checkCanUserSeeProcessInstanceWhenApiReturn(expected);
+        checkCanUserSeeProcessInstanceWhenApiReturn(true);
     }
 
     @Test
     public void should_canUserSeeProcessInstance_call_engine_api_false() throws Exception {
-        final boolean expected = false;
-        checkCanUserSeeProcessInstanceWhenApiReturn(expected);
+        checkCanUserSeeProcessInstanceWhenApiReturn(false);
     }
 
     private void checkCanUserSeeProcessInstanceWhenApiReturn(final boolean expected) throws Exception {
@@ -204,5 +207,51 @@ public class FormWorkflowAPIImplTest {
         doReturn(userId).when(session).getUserId();
         // When
         formWorkflowAPIImpl.assignTaskIfNotAssigned(session, activityInstanceID, session.getUserId());
+    }
+
+    @Test
+    public void hasUserAdminProfileShouldReturnFalseForNOTAdminProfile() throws Exception {
+        final ProfileAPI profileAPI = mock(ProfileAPI.class);
+        final long userId = 488L;
+        final Profile profile = mock(Profile.class);
+        doReturn(Collections.singletonList(profile)).when(profileAPI).getProfilesForUser(userId, 0, 10, ProfileCriterion.NAME_ASC);
+        doReturn(userId).when(session).getUserId();
+        doReturn("User_Profile").when(profile).getName();
+
+        final boolean adminProfile = formWorkflowAPIImpl.hasUserAdminProfile(session, profileAPI);
+
+        assertThat(adminProfile).isFalse();
+    }
+
+    @Test
+    public void hasUserAdminProfileShouldReturnTrueForAdminProfileOnFirstPage() throws Exception {
+        final ProfileAPI profileAPI = mock(ProfileAPI.class);
+        final long userId = 488L;
+        final Profile profile = mock(Profile.class);
+        doReturn(Collections.singletonList(profile)).when(profileAPI).getProfilesForUser(userId, 0, 10, ProfileCriterion.NAME_ASC);
+        doReturn(userId).when(session).getUserId();
+        doReturn(formWorkflowAPIImpl.ADMIN_PROFILE_NAME).when(profile).getName();
+
+        final boolean adminProfile = formWorkflowAPIImpl.hasUserAdminProfile(session, profileAPI);
+
+        assertThat(adminProfile).isTrue();
+    }
+
+    @Test
+    public void hasUserAdminProfileShouldReturnTrueForAdminProfileOnSecondPage() throws Exception {
+        final ProfileAPI profileAPI = mock(ProfileAPI.class);
+        final long userId = 488L;
+        final Profile badProfile = mock(Profile.class);
+        doReturn(Collections.singletonList(badProfile)).when(profileAPI).getProfilesForUser(userId, 0, 10, ProfileCriterion.NAME_ASC);
+        doReturn("badProfileName").when(badProfile).getName();
+        final Profile adminProfile = mock(Profile.class);
+        doReturn(Collections.singletonList(adminProfile)).when(profileAPI).getProfilesForUser(userId, 10, 10, ProfileCriterion.NAME_ASC);
+        doReturn(formWorkflowAPIImpl.ADMIN_PROFILE_NAME).when(adminProfile).getName();
+
+        doReturn(userId).when(session).getUserId();
+
+        final boolean foundProfile = formWorkflowAPIImpl.hasUserAdminProfile(session, profileAPI);
+
+        assertThat(foundProfile).isTrue();
     }
 }

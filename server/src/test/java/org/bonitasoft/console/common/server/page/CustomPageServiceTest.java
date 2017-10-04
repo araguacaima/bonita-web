@@ -1,3 +1,17 @@
+/**
+ * Copyright (C) 2015 Bonitasoft S.A.
+ * Bonitasoft, 32 rue Gustave Eiffel - 38000 Grenoble
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2.0 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 package org.bonitasoft.console.common.server.page;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -8,19 +22,11 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
-import static org.mockito.Mockito.when;
-import groovy.lang.GroovyClassLoader;
+import static org.mockito.Mockito.*;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -31,7 +37,12 @@ import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.io.IOUtils;
+import org.bonitasoft.console.common.server.page.extension.PageContextImpl;
+import org.bonitasoft.console.common.server.page.extension.PageResourceProviderImpl;
+import org.bonitasoft.console.common.server.page.extension.RestApiUtilImpl;
+import org.bonitasoft.console.common.server.preferences.constants.WebBonitaConstantsUtils;
 import org.bonitasoft.console.common.server.preferences.properties.CompoundPermissionsMapping;
+import org.bonitasoft.console.common.server.preferences.properties.ConsoleProperties;
 import org.bonitasoft.console.common.server.preferences.properties.ResourcesPermissionsMapping;
 import org.bonitasoft.engine.api.PageAPI;
 import org.bonitasoft.engine.exception.AlreadyExistsException;
@@ -42,10 +53,12 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.runners.MockitoJUnitRunner;
+
+import groovy.lang.GroovyClassLoader;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CustomPageServiceTest {
@@ -53,8 +66,7 @@ public class CustomPageServiceTest {
     public static final String PAGE_NO_API_EXTENSION_PROPERTIES = "pageNoApiExtension.properties";
     public static final String PAGE_PROPERTIES = "page.properties";
 
-    @Spy
-    private final CustomPageService customPageService = spy(new CustomPageService());
+    private CustomPageService customPageService;
 
     @Mock
     CompoundPermissionsMapping compoundPermissionsMapping;
@@ -69,7 +81,7 @@ public class CustomPageServiceTest {
     APISession apiSession;
 
     @Mock
-    PageResourceProvider pageResourceProvider;
+    PageResourceProviderImpl pageResourceProvider;
 
     @Mock
     PageAPI pageAPI;
@@ -78,14 +90,25 @@ public class CustomPageServiceTest {
     private HttpServletRequest request;
 
     @Mock
-    private PageContext pageContext;
+    private PageContextImpl pageContext;
 
     @Mock
     private Page mockedPage;
+    @Mock
+    private ConsoleProperties consoleProperties;
+    @Mock
+    private WebBonitaConstantsUtils webBonitaConstantUtils;
+
+    @Rule
+    public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Before
-    public void before() {
+    public void before() throws IOException {
+        customPageService = spy(new CustomPageService());
+        CustomPageService.clearCachedClassloaders();
         when(apiSession.getTenantId()).thenReturn(1L);
+        doReturn(consoleProperties).when(customPageService).getConsoleProperties(apiSession);
+        doReturn(webBonitaConstantUtils).when(customPageService).getWebBonitaConstantsUtils(apiSession);
     }
 
     @Test
@@ -98,7 +121,8 @@ public class CustomPageServiceTest {
         doReturn(pageFile).when(customPageService).getGroovyPageFile(any(File.class));
         final File pageLibDir = new File(pageFile.getParentFile(), File.separator + "lib");
         doReturn(pageLibDir).when(customPageService).getCustomPageLibDirectory(any(File.class));
-        doReturn(Thread.currentThread().getContextClassLoader()).when(customPageService).getParentClassloader(anyString(), any(File.class), anyString());
+        doReturn(Thread.currentThread().getContextClassLoader()).when(customPageService).getParentClassloader(anyString(),
+                any(CustomPageDependenciesResolver.class), any(BDMClientDependenciesResolver.class));
 
         when(mockedPage.getLastModificationDate()).thenReturn(new Date(0L));
         doReturn(pageAPI).when(customPageService).getPageAPI(apiSession);
@@ -106,13 +130,12 @@ public class CustomPageServiceTest {
 
         // When
         final GroovyClassLoader classloader = customPageService.getPageClassloader(apiSession, pageResourceProvider);
-        final Class<PageController> pageClass = customPageService.registerPage(classloader, pageResourceProvider);
-        final PageController pageController = customPageService.loadPage(pageClass);
+        final Class<?> pageClass = customPageService.registerPage(classloader, pageResourceProvider);
+        final PageController pageController = customPageService.loadPage((Class<PageController>) pageClass);
 
         // Then
         assertNotNull(pageController);
     }
-
 
     @Test
     public void should_load_rest_api_page_return_api_impl() throws Exception {
@@ -125,7 +148,9 @@ public class CustomPageServiceTest {
         doReturn(pageFile).when(customPageService).getPageFile(any(File.class), anyString());
         final File pageLibDir = new File(pageFile.getParentFile(), File.separator + "lib");
         doReturn(pageLibDir).when(customPageService).getCustomPageLibDirectory(any(File.class));
-        doReturn(Thread.currentThread().getContextClassLoader()).when(customPageService).getParentClassloader(anyString(), any(File.class), anyString());
+        doReturn(Thread.currentThread().getContextClassLoader()).when(customPageService).getParentClassloader(anyString(),
+                any(CustomPageDependenciesResolver.class),
+                any(BDMClientDependenciesResolver.class));
         final Page mockedPage = mock(Page.class);
         when(mockedPage.getLastModificationDate()).thenReturn(new Date(0L));
         doReturn(pageAPI).when(customPageService).getPageAPI(apiSession);
@@ -133,8 +158,8 @@ public class CustomPageServiceTest {
 
         // When
         final GroovyClassLoader classloader = customPageService.getPageClassloader(apiSession, pageResourceProvider);
-        final Class<RestApiController> restApiControllerClass = customPageService.registerRestApiPage(classloader, pageResourceProvider, CustomPageService.PAGE_CONTROLLER_FILENAME);
-        final RestApiController restApiController = customPageService.loadRestApiPage(restApiControllerClass);
+        final Class<?> restApiControllerClass = customPageService.registerRestApiPage(classloader, new File(pageDir, "IndexRestApi.groovy"));
+        final RestApiController restApiController = customPageService.loadRestApiPage((Class<RestApiController>) restApiControllerClass);
 
         // Then
         assertNotNull(restApiController);
@@ -144,21 +169,22 @@ public class CustomPageServiceTest {
     public void should_retrievePageZipContent_save_it_in_bonita_home() throws Exception {
         // Given
         final Page mockedPage = mock(Page.class);
-        when(mockedPage.getId()).thenReturn(1l);
+        when(mockedPage.getId()).thenReturn(1L);
         when(mockedPage.getName()).thenReturn("page1");
         when(apiSession.getTenantId()).thenReturn(0L);
         doReturn(pageAPI).when(customPageService).getPageAPI(apiSession);
         final byte[] zipFile = IOUtils.toByteArray(getClass().getResourceAsStream("page.zip"));
-        when(pageAPI.getPageContent(1l)).thenReturn(zipFile);
+        when(pageAPI.getPageContent(1L)).thenReturn(zipFile);
         when(pageResourceProvider.getPage(pageAPI)).thenReturn(mockedPage);
-        when(pageResourceProvider.getTempPageFile()).thenReturn(new File("target/bonita/home/client/tenant/1/temp"));
-        when(pageResourceProvider.getPageDirectory()).thenReturn(new File("target/bonita/home/client/tenants/1/pages/page1"));
+        when(pageResourceProvider.getTempPageFile()).thenReturn(temporaryFolder.newFile());
+        File pageDirectory = temporaryFolder.newFolder();
+        when(pageResourceProvider.getPageDirectory()).thenReturn(pageDirectory);
 
         // When
         customPageService.retrievePageZipContent(apiSession, pageResourceProvider);
 
         // Validate
-        assertNotNull(pageResourceProvider.getPageDirectory().listFiles());
+        assertThat(pageDirectory.listFiles()).isNotEmpty();
     }
 
     @Test
@@ -171,7 +197,7 @@ public class CustomPageServiceTest {
         IOUtils.write(fileContent.getBytes(), new FileOutputStream(pagePropertiesFile));
         doReturn(new HashSet<>(Arrays.asList("Organization Visualization"))).when(resourcesPermissionsMapping).getPropertyAsSet("GET|identity/user");
         doReturn(new HashSet<>(Arrays.asList("Organization Visualization", "Organization Managment")))
-        .when(resourcesPermissionsMapping).getPropertyAsSet("PUT|identity/user");
+                .when(resourcesPermissionsMapping).getPropertyAsSet("PUT|identity/user");
 
         // When
         final Set<String> customPagePermissions = customPageService.getCustomPagePermissions(pagePropertiesFile, resourcesPermissionsMapping, true);
@@ -190,7 +216,7 @@ public class CustomPageServiceTest {
         IOUtils.write(fileContent.getBytes(), new FileOutputStream(pagePropertiesFile));
         doReturn(Collections.emptySet()).when(resourcesPermissionsMapping).getPropertyAsSet("GET|unkown/resource");
         doReturn(new HashSet<>(Arrays.asList("Organization Visualization", "Organization Managment")))
-        .when(resourcesPermissionsMapping).getPropertyAsSet("PUT|identity/user");
+                .when(resourcesPermissionsMapping).getPropertyAsSet("PUT|identity/user");
 
         // When
         final Set<String> customPagePermissions = customPageService.getCustomPagePermissions(pagePropertiesFile, resourcesPermissionsMapping, false);
@@ -209,7 +235,7 @@ public class CustomPageServiceTest {
         IOUtils.write(fileContent.getBytes(), new FileOutputStream(pagePropertiesFile));
         doReturn(new HashSet<>(Arrays.asList("Organization Visualization"))).when(resourcesPermissionsMapping).getPropertyAsSet("GET|identity/user");
         doReturn(new HashSet<>(Arrays.asList("Organization Visualization", "Organization Managment")))
-        .when(resourcesPermissionsMapping).getPropertyAsSet("PUT|identity/user");
+                .when(resourcesPermissionsMapping).getPropertyAsSet("PUT|identity/user");
 
         // When
         final Set<String> customPagePermissions = customPageService.getCustomPagePermissions(pagePropertiesFile, resourcesPermissionsMapping, true);
@@ -366,19 +392,23 @@ public class CustomPageServiceTest {
         when(pageAPI.getPageContent(1l)).thenReturn(zipFile);
         when(pageResourceProvider.getPage(pageAPI)).thenReturn(mockedPage);
         when(pageResourceProvider.getTempPageFile()).thenReturn(new File("target/bonita/home/client/tenant/1/temp"));
-        when(pageResourceProvider.getPageDirectory()).thenReturn(new File("target/bonita/home/client/tenants/1/pages/page2"));
+        final File pageDirectory = new File("target/bonita/home/client/tenants/1/pages/page2");
+        when(pageResourceProvider.getPageDirectory()).thenReturn(pageDirectory);
+        when(consoleProperties.isPageInDebugMode()).thenReturn(true);
 
         final GroovyClassLoader pageClassloader = customPageService.getPageClassloader(apiSession, pageResourceProvider);
 
         // When
         customPageService.retrievePageZipContent(apiSession, pageResourceProvider);
-        final Class<RestApiController> restApiControllerClass = customPageService.registerRestApiPage(pageClassloader, pageResourceProvider, "RestResource.groovy");
+        final Class<?> restApiControllerClass = customPageService.registerRestApiPage(pageClassloader,
+                new File(pageDirectory, "RestResource.groovy"));
 
         // then
-        final RestApiController restApiController = restApiControllerClass.newInstance();
-        final RestApiResponse restApiResponse = restApiController.doHandle(request, pageResourceProvider, pageContext, new RestApiResponseBuilder(), new RestApiUtilImpl());
+        final RestApiController restApiController = (RestApiController) restApiControllerClass.newInstance();
+        final RestApiResponse restApiResponse = restApiController.doHandle(request, pageResourceProvider, pageContext, new RestApiResponseBuilder(),
+                new RestApiUtilImpl());
         RestApiResponseAssert.assertThat(restApiResponse).as("should return result").hasResponse("RestResource.groovy!")
-        .hasNoAdditionalCookies().hasHttpStatus(200);
+                .hasNoAdditionalCookies().hasHttpStatus(200);
     }
 
     @Test
@@ -389,13 +419,13 @@ public class CustomPageServiceTest {
         final File propertyFile = new File(getClass().getResource(PAGE_PROPERTIES).toURI());
         doReturn(pageResourceProvider).when(customPageService).getPageResourceProvider(eq(mockedPage), anyLong());
         doReturn(propertyFile).when(pageResourceProvider).getResourceAsFile(anyString());
-        doNothing().when(customPageService).ensurePageFolderIsUpToDate(apiSession,pageResourceProvider);
+        doNothing().when(customPageService).ensurePageFolderIsUpToDate(apiSession, pageResourceProvider);
 
         //when
         customPageService.addRestApiExtensionPermissions(resourcesPermissionsMapping, pageResourceProvider, apiSession);
 
         //then
-        verify(customPageService).ensurePageFolderIsUpToDate(apiSession,pageResourceProvider);
+        verify(customPageService).ensurePageFolderIsUpToDate(apiSession, pageResourceProvider);
         verify(resourcesPermissionsMapping).setProperty("GET|extension/restApiGet", "[permission1]");
         verify(resourcesPermissionsMapping).setProperty("POST|extension/restApiPost", "[permission2,permission3]");
     }
@@ -414,10 +444,9 @@ public class CustomPageServiceTest {
         customPageService.addRestApiExtensionPermissions(resourcesPermissionsMapping, pageResourceProvider, apiSession);
 
         //then
-        verify(customPageService).ensurePageFolderIsUpToDate(apiSession,pageResourceProvider);
+        verify(customPageService).ensurePageFolderIsUpToDate(apiSession, pageResourceProvider);
         verifyZeroInteractions(resourcesPermissionsMapping);
     }
-
 
     @Test
     public void should_remove_api_extension_permissions() throws Exception {
@@ -431,7 +460,7 @@ public class CustomPageServiceTest {
         customPageService.removeRestApiExtensionPermissions(resourcesPermissionsMapping, pageResourceProvider, apiSession);
 
         //then
-        verify(customPageService).ensurePageFolderIsUpToDate(apiSession,pageResourceProvider);
+        verify(customPageService).ensurePageFolderIsUpToDate(apiSession, pageResourceProvider);
         verify(resourcesPermissionsMapping).removeProperty("GET|extension/restApiGet");
         verify(resourcesPermissionsMapping).removeProperty("POST|extension/restApiPost");
     }
@@ -448,9 +477,18 @@ public class CustomPageServiceTest {
         customPageService.removeRestApiExtensionPermissions(resourcesPermissionsMapping, pageResourceProvider, apiSession);
 
         //then
-        verify(customPageService).ensurePageFolderIsUpToDate(apiSession,pageResourceProvider);
+        verify(customPageService).ensurePageFolderIsUpToDate(apiSession, pageResourceProvider);
         verifyZeroInteractions(resourcesPermissionsMapping);
     }
 
+    @Test
+    public void should_add_page_root_folder_in_classpath() throws Exception {
+        final File pageDir = new File(getClass().getResource("/ARootPageFolder").getFile());
+        final GroovyClassLoader classloader = customPageService.buildPageClassloader(apiSession, "pageName", pageDir);
+        assertThat(classloader.loadClass("AbstractIndex")).isNotNull();
+        assertThat(classloader.loadClass("Index")).isNotNull();
+        assertThat(classloader.loadClass("org.company.test.Util")).isNotNull();
+        assertThat(classloader.getResource("org/company/test/config.properties")).isNotNull();
+    }
 
 }

@@ -37,8 +37,11 @@ public class UserItemConverter extends ItemConverter<UserItem, User> {
         result.setEnabled(user.isEnabled());
 
         // Add default icon if icon if empty
-        final String iconPath = user.getIconPath();
-        result.setIcon(iconPath == null || iconPath.isEmpty() ? UserItem.DEFAULT_USER_ICON : iconPath);
+        if (user.getIconId() != null) {
+            result.setIcon("../avatars/" + String.valueOf(user.getIconId()));
+        } else {
+            result.setIcon(UserItem.DEFAULT_USER_ICON);
+        }
 
         result.setCreationDate(user.getCreationDate());
         result.setCreatedByUserId(user.getCreatedBy());
@@ -46,7 +49,6 @@ public class UserItemConverter extends ItemConverter<UserItem, User> {
         result.setLastConnectionDate(user.getLastConnection());
         result.setTitle(user.getTitle());
         result.setJobTitle(user.getJobTitle());
-
 
         return result;
     }

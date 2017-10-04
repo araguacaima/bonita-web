@@ -13,7 +13,19 @@
  **/
 package org.bonitasoft.web.rest.server.api.resource;
 
-import com.fasterxml.jackson.core.JsonParseException;
+import java.io.FileNotFoundException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import org.bonitasoft.engine.bpm.contract.ContractViolationException;
 import org.bonitasoft.engine.exception.NotFoundException;
@@ -35,18 +47,7 @@ import org.restlet.resource.ResourceException;
 import org.restlet.resource.ServerResource;
 import org.restlet.util.Series;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-
-import java.io.FileNotFoundException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Level;
+import com.fasterxml.jackson.core.JsonParseException;
 
 /**
  * @author Emmanuel Duchastenier
@@ -54,6 +55,11 @@ import java.util.logging.Level;
 public class CommonResource extends ServerResource {
 
     private APISession sessionSingleton = null;
+
+    /**
+     * Logger
+     */
+    private static final Logger LOGGER = Logger.getLogger(CommonResource.class.getName());
 
     /**
      * Get the tenant session to access the engine APIs
@@ -92,13 +98,13 @@ public class CommonResource extends ServerResource {
         if (parameters == null) {
             return null;
         }
-        final Map<String, String> results = new HashMap<String, String>();
+        final Map<String, String> results = new HashMap<>();
         for (final String parameter : parameters) {
             final String[] split = parameter.split("=");
             if (split.length < 2) {
                 results.put(split[0], null);
             } else {
-                results.put(split[0], split[1]);
+                results.put(split[0], parameter.substring(split[0].length() + 1));
             }
         }
         return results;
@@ -147,21 +153,14 @@ public class CommonResource extends ServerResource {
     }
 
     /**
-     * Get a list of parameter values by name.
+     * Get a list of parameter values by name. If the parameter doesn't exist the result will be an empty list.
      *
      * @param name
      *        The name of the parameter (case sensitive).
-     * @return The values of a parameter as a list of String, or <code>null</code> if the parameter doesn't exist.
+     * @return The values of a parameter as a list of String.
      */
     public List<String> getParameterAsList(final String name) {
-        final String values = getQuery().getValues(name);
-        if (values != null) {
-            final String[] parameterValues = values.split(",");
-            if (parameterValues != null && parameterValues.length > 0) {
-                return Arrays.asList(parameterValues);
-            }
-        }
-        return null;
+        return Arrays.asList(getQuery().getValuesArray(name));
     }
 
     public SearchOptions buildSearchOptions() {
@@ -180,21 +179,30 @@ public class CommonResource extends ServerResource {
         super.doCatch(t);
 
         final String message = "Error while querying REST resource " + getClass().getName() + " message: " + t.getMessage();
-        if (getLogger().isLoggable(Level.INFO)) {
-            getLogger().log(Level.INFO, "*** " + message);
-        }
+        final ErrorMessage errorMessage = new ErrorMessage(t);
+
         getResponse().setStatus(getStatus(), message);
 
         if (t instanceof IllegalArgumentException || t instanceof JsonParseException) {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(Level.FINE, "***" + message);
+            }
             getResponse().setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
-        }
-        else if (t instanceof FileNotFoundException) {
+        } else if (t instanceof FileNotFoundException) {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(Level.FINE, "***" + message);
+            }
             getResponse().setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-        }
-        else if (t instanceof NotFoundException) {
+            errorMessage.setMessage("File Not Found");
+        } else if (t instanceof NotFoundException) {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(Level.FINE, "***" + message);
+            }
             getResponse().setStatus(Status.CLIENT_ERROR_NOT_FOUND);
+        } else {
+            LOGGER.log(Level.SEVERE, t.getMessage(), t);
         }
-        getResponse().setEntity(new ErrorMessage(t).toEntity());
+        getResponse().setEntity(errorMessage.toEntity());
     }
 
     @Override
@@ -235,7 +243,7 @@ public class CommonResource extends ServerResource {
             final String[] parameterValues = values.split(",");
             if (parameterValues != null && parameterValues.length > 0) {
             	final List<Long> longValues = new ArrayList<>();
-            	for (String parameterValue : parameterValues) {
+            	for (final String parameterValue : parameterValues) {
 					longValues.add(convertToLong(parameterValue));
 				}
             	return longValues;
@@ -269,8 +277,12 @@ public class CommonResource extends ServerResource {
     }
 
     protected void setContentRange(final SearchResult<?> searchResult) {
+        setContentRange(getSearchPageNumber(), getSearchPageSize(), searchResult.getCount());
+    }
+
+    protected void setContentRange(final int pageNumber, final int pageSize, final long count) {
         final Series<Header> headers = getResponse().getHeaders();
-        headers.add(new Header("Content-range", getSearchPageNumber() + "-" + getSearchPageSize() + "/" + searchResult.getCount()));
+        headers.add(new Header("Content-range", pageNumber + "-" + pageSize + "/" + count));
     }
 
     protected void manageContractViolationException(final ContractViolationException e, final String statusErrorMessage) {

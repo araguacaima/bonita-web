@@ -5,12 +5,10 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2.0 of the License, or
  * (at your option) any later version.
- *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
@@ -34,31 +32,32 @@ public class UnzipUtil {
     static final int BUFFER = 2048;
 
     /**
-     * Unzip a zip file from InputStream
+     * Unzip a zip file from InputStream.
+     * Client is responsible to close the input stream.
      *
-     * @param InputStream
-     *            of SourceFile
+     * @param sourceFile
      * @param targetPath
      * @throws IOException
      * @throws FileNotFoundException
      */
     public static synchronized void unzip(final InputStream sourceFile, final String targetPath) throws FileNotFoundException, IOException {
         IOUtil.unzipToFolder(sourceFile, new File(targetPath));
-        sourceFile.close();
     }
 
     /**
      * Unzip a zip file from InputStream
      *
-     * @param File
-     *            of SourceFile
+     * @param zipFile
+     *        of SourceFile
      * @param targetPath
      * @throws IOException
      * @throws FileNotFoundException
      */
     public static synchronized void unzip(final File zipFile, final String targetPath) throws FileNotFoundException, IOException {
-        final FileInputStream zipFileInputStream = new FileInputStream(zipFile);
-        unzip(zipFileInputStream, targetPath);
+        try (final FileInputStream zipFileInputStream = new FileInputStream(zipFile);) {
+            unzip(zipFileInputStream, targetPath);
+        }
+
     }
 
     public static synchronized void unzip(final File zipFile, final String targetPath, final boolean deleteFileAfterZip) throws FileNotFoundException,

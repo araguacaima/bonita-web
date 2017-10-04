@@ -3,6 +3,7 @@ package org.bonitasoft.web.rest.server.api.resource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.bonitasoft.web.rest.server.utils.ResponseAssert.assertThat;
 import static org.bonitasoft.web.rest.server.utils.RestletAppBuilder.aTestApp;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyObject;
@@ -27,16 +28,23 @@ import org.bonitasoft.web.toolkit.client.common.exception.api.APIException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.restlet.Application;
 import org.restlet.Response;
+import org.restlet.data.Form;
+import org.restlet.data.Header;
 import org.restlet.data.Status;
+import org.restlet.util.Series;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CommonResourceTest extends RestletTest {
 
     @Mock
     private FakeService fakeService;
+
+    @Spy
+    private final Series<Header> headers = new Series<>(Header.class);
 
     @Override
     protected Application configureApplication() {
@@ -141,21 +149,22 @@ public class CommonResourceTest extends RestletTest {
     @Test
     public void parseFilterShouldBuildExpectedMap() throws Exception {
         // given:
-        final List<String> filters = Arrays.asList("toto=17", "titi='EN_ECHEC'");
+        final List<String> filters = Arrays.asList("toto=17", "titi='EN_ECHEC'", "task=task=with=equal=in=name");
 
         // when:
         final Map<String, String> parseFilters = new CommonResource().parseFilters(filters);
 
         // then:
-        assertThat(parseFilters.size()).isEqualTo(2);
+        assertThat(parseFilters.size()).isEqualTo(3);
         assertThat(parseFilters.get("toto")).isEqualTo("17");
         assertThat(parseFilters.get("titi")).isEqualTo("'EN_ECHEC'");
+        assertThat(parseFilters.get("task")).isEqualTo("task=with=equal=in=name");
     }
 
     @Test
     public void parseFilterShouldBuildMapEvenIfNoValueForParam() throws Exception {
         // given:
-        final List<String> filters = new ArrayList<String>(2);
+        final List<String> filters = new ArrayList<>(2);
         filters.add("nomatchingvalue=");
 
         // when:
@@ -249,7 +258,7 @@ public class CommonResourceTest extends RestletTest {
         doReturn(null).when(spy).getRequestParameter(anyString());
 
         // when then exception
-        final String parameter = spy.getQueryParameter(true);
+        spy.getQueryParameter(true);
     }
 
     @Test
@@ -260,6 +269,34 @@ public class CommonResourceTest extends RestletTest {
 
         assertThat(response).hasStatus(Status.CLIENT_ERROR_BAD_REQUEST);
         assertThat(response).hasJsonEntityEqualTo("{\"exception\":\"class java.lang.IllegalArgumentException\",\"message\":\"an error message\"}'");
+    }
+
+    @Test
+    public void getParametersAsList_should_support_value_with_comma() throws Exception {
+        //given
+        final CommonResource resource = spy(new CommonResource());
+        final Form form = new Form("f=a=b&f=c=d,e");
+        given(resource.getQuery()).willReturn(form);
+
+        //when
+        final List<String> parametersValues = resource.getParameterAsList("f");
+
+        //then
+        assertThat(parametersValues).containsExactly("a=b", "c=d,e");
+    }
+
+    @Test
+    public void getParametersAsList_should_return_emptyList_when_parameter_does_not_exist() throws Exception {
+        //given
+        final CommonResource resource = spy(new CommonResource());
+        final Form form = new Form("f=a=b&f=c=d,e");
+        given(resource.getQuery()).willReturn(form);
+
+        //when
+        final List<String> parametersValues = resource.getParameterAsList("anyAbsent");
+
+        //then
+        assertThat(parametersValues).isEmpty();
     }
 
 }

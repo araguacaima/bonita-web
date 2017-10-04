@@ -25,6 +25,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.bonitasoft.console.common.server.page.extension.PageResourceProviderImpl;
 import org.bonitasoft.console.common.server.utils.BonitaHomeFolderAccessor;
 import org.bonitasoft.console.common.server.utils.SessionUtil;
 import org.bonitasoft.engine.exception.BonitaException;
@@ -55,6 +56,8 @@ public class PageServlet extends HttpServlet {
 
     public static final String API_PATH_SEPARATOR = "/API";
 
+    public static final String THEME_PATH_SEPARATOR = "/theme";
+
     protected CustomPageRequestModifier customPageRequestModifier = new CustomPageRequestModifier();
 
     protected PageMappingService pageMappingService = new PageMappingService();
@@ -72,6 +75,11 @@ public class PageServlet extends HttpServlet {
             //Support relative calls to the REST API from the forms using ../API/
             final String apiPath = pathInfo.substring(pathInfo.indexOf(API_PATH_SEPARATOR + "/"));
             request.getRequestDispatcher(apiPath).forward(request, response);
+        } else if (!pathInfo.contains(RESOURCE_PATH_SEPARATOR + "/") && pathInfo.indexOf(THEME_PATH_SEPARATOR + "/") > 0) {
+            //BS-14188 : as theme are only currently managed in living app, we cannot currently serve
+            // theme request from Forms. But, it shouldn't produce any 400 request error either
+            // thus, we return 200
+            return ;
         } else {
             super.service(request, response);
         }
@@ -109,7 +117,7 @@ public class PageServlet extends HttpServlet {
 
     protected void resolveAndDisplayPage(final HttpServletRequest request, final HttpServletResponse response, final APISession apiSession,
             final String mappingKey, final String resourcePath)
-            throws BonitaException, IOException, InstantiationException, IllegalAccessException {
+                    throws BonitaException, IOException, InstantiationException, IllegalAccessException {
         try {
             final PageReference pageReference = pageMappingService.getPage(request, apiSession, mappingKey, pageRenderer.getCurrentLocale(request),
                     isNotResourcePath(resourcePath));
@@ -118,11 +126,11 @@ public class PageServlet extends HttpServlet {
             } else if (pageReference.getPageId() != null) {
                 displayPageOrResource(request, response, apiSession, pageReference.getPageId(), resourcePath);
             } else {
-                if (LOGGER.isLoggable(Level.WARNING)) {
+                if (LOGGER.isLoggable(Level.FINE)) {
                     final String message = "Both URL and pageId are not set in the page mapping for " + mappingKey;
-                    LOGGER.log(Level.WARNING, message);
+                    LOGGER.log(Level.FINE, message);
                 }
-                response.sendError(HttpServletResponse.SC_NOT_FOUND, "Form mapping not found");
+                return;
             }
         } catch (final UnauthorizedAccessException e) {
             final String message = "User not Authorized";
@@ -140,8 +148,8 @@ public class PageServlet extends HttpServlet {
     }
 
     protected void displayPageOrResource(final HttpServletRequest request, final HttpServletResponse response, final APISession apiSession,
-                                         final Long pageId, final String resourcePath)
-            throws InstantiationException, IllegalAccessException, IOException, BonitaException {
+            final Long pageId, final String resourcePath)
+                    throws InstantiationException, IllegalAccessException, IOException, BonitaException {
         try {
             if (isNotResourcePath(resourcePath)) {
                 pageRenderer.displayCustomPage(request, response, apiSession, pageId);
@@ -163,7 +171,7 @@ public class PageServlet extends HttpServlet {
 
     protected File getResourceFile(final HttpServletResponse response, final APISession apiSession, final Long pageId, final String resourcePath)
             throws IOException, BonitaException {
-        final PageResourceProvider pageResourceProvider = pageRenderer.getPageResourceProvider(pageId, apiSession);
+        final PageResourceProviderImpl pageResourceProvider = pageRenderer.getPageResourceProvider(pageId, apiSession);
         final File resourceFile = pageResourceProvider.getResourceAsFile(CustomPageService.RESOURCES_PROPERTY + File.separator + resourcePath);
         if (!bonitaHomeFolderAccessor.isInFolder(resourceFile, pageResourceProvider.getPageDirectory())) {
             final String message = "For security reasons, access to this file path is forbidden : " + resourcePath;

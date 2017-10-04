@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+         xmlns="http://java.sun.com/xml/ns/javaee"
          xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
          id="console-war" version="2.5">
     <display-name>Bonita</display-name>
@@ -29,14 +29,17 @@
         <filter-name>SecurityFilter</filter-name>
         <filter-class>org.bonitasoft.console.common.server.login.filter.SecurityFilter</filter-class>
     </filter>
-    <!-- Bonita home Filter -->
-    <filter>
-        <filter-name>BonitaHomeFilter</filter-name>
-        <filter-class>org.bonitasoft.console.common.server.login.filter.BonitaHomeFilter</filter-class>
-    </filter>
     <!--Rest filter -->
     <filter>
         <filter-name>RestAPIAuthorizationFilter</filter-name>
+        <filter-class>org.bonitasoft.console.common.server.login.filter.RestAPIAuthorizationFilter</filter-class>
+        <init-param>
+            <param-name>excludePatterns</param-name>
+            <param-value>i18ntranslation</param-value>
+        </init-param>
+    </filter>
+    <filter>
+        <filter-name>RestAPIAuthorizationFilterToolkit</filter-name>
         <filter-class>org.bonitasoft.console.common.server.login.filter.RestAPIAuthorizationFilter</filter-class>
         <init-param>
             <param-name>excludePatterns</param-name>
@@ -74,7 +77,7 @@
         -->
         <!-- init-param>
             <param-name>excludePattern</param-name>
-            <param-value>^/(bonita/)?(portal/themeResource$)|(portal/scripts)|(portal/formsService)</param-value>
+            <param-value>^/(bonita/)?(portal/themeResource$)|(theme/)|(portal/scripts)|(portal/formsService)</param-value>
         </init-param -->
     </filter>
     <!-- Cache Filter -->
@@ -163,10 +166,6 @@
         <url-pattern>/login.jsp</url-pattern>
     </filter-mapping>
     <filter-mapping>
-        <filter-name>BonitaHomeFilter</filter-name>
-        <url-pattern>/login.jsp</url-pattern>
-    </filter-mapping>
-    <filter-mapping>
         <filter-name>TokenValidatorFilter</filter-name>
         <url-pattern>/API/*</url-pattern>
         <url-pattern>/APIToolkit/*</url-pattern>
@@ -187,9 +186,15 @@
         <!-- <url-pattern>/portal/documentDownload</url-pattern> -->
         <!-- <url-pattern>/portal/downloadDocument</url-pattern> -->
         <!--  Add more servlet mappings here -->
-        <dispatcher>REQUEST</dispatcher>		
+        <dispatcher>REQUEST</dispatcher>
         <dispatcher>FORWARD</dispatcher>
         <dispatcher>INCLUDE</dispatcher>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>RestAPIAuthorizationFilterToolkit</filter-name>
+        <url-pattern>/APIToolkit/*</url-pattern>
+        <!-- No need to handle the forward as requests forwarded to this URL are already filtered by RestAPIAuthorizationFilter -->
+        <dispatcher>REQUEST</dispatcher>
     </filter-mapping>
     <filter-mapping>
         <filter-name>TokenGeneratorFilter</filter-name>
@@ -229,6 +234,7 @@
         <filter-name>ApplicationResourceCacheFilter</filter-name>
         <url-pattern>/portal/applicationResource</url-pattern>
         <url-pattern>/portal/themeResource</url-pattern>
+        <url-pattern>/theme/*</url-pattern>
     </filter-mapping>
     <!-- Cache Filter Mapping End -->
     <!--  Filter for restlet URLs -->
@@ -288,6 +294,10 @@
             <param-name>ReturnOriginalFilename</param-name>
             <param-value>true</param-value>
         </init-param>
+        <init-param>
+            <param-name>CheckUploadedFileSize</param-name>
+            <param-value>true</param-value>
+        </init-param>
     </servlet>
     <servlet>
         <servlet-name>processUploadServlet</servlet-name>
@@ -315,8 +325,8 @@
     </servlet>
 
     <servlet>
-        <servlet-name>attachmentImage</servlet-name>
-        <servlet-class>org.bonitasoft.console.common.server.servlet.TenantImageServlet</servlet-class>
+        <servlet-name>iconServlet</servlet-name>
+        <servlet-class>org.bonitasoft.console.common.server.servlet.IconServlet</servlet-class>
     </servlet>
     <servlet>
         <servlet-name>loginService</servlet-name>
@@ -403,7 +413,7 @@
         <servlet-class>org.bonitasoft.console.common.server.page.PageResourceServlet</servlet-class>
     </servlet>
     <servlet>
-		<servlet-name>pageDownload</servlet-name>
+        <servlet-name>pageDownload</servlet-name>
         <servlet-class>org.bonitasoft.console.common.server.page.PageDownloadServlet</servlet-class>
     </servlet>
     <servlet>
@@ -473,6 +483,7 @@
     <servlet-mapping>
         <servlet-name>themeResource</servlet-name>
         <url-pattern>/portal/themeResource</url-pattern>
+        <url-pattern>/theme/*</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
         <servlet-name>SSOService</servlet-name>
@@ -511,8 +522,8 @@
         <url-pattern>/portal/exportActors</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
-        <servlet-name>attachmentImage</servlet-name>
-        <url-pattern>/portal/attachmentImage</url-pattern>
+        <servlet-name>iconServlet</servlet-name>
+        <url-pattern>/avatars/*</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
         <servlet-name>deprecatedDocumentDownloadServlet</servlet-name>
@@ -530,6 +541,7 @@
     <servlet-mapping>
         <servlet-name>formsDocumentImage</servlet-name>
         <url-pattern>/portal/formsDocumentImage</url-pattern>
+        <url-pattern>/API/formsDocumentImage</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
         <servlet-name>loginService</servlet-name>

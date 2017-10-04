@@ -12,8 +12,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.bonitasoft.console.common.server.page.CustomPageService;
 import org.bonitasoft.console.common.server.page.PageRenderer;
-import org.bonitasoft.console.common.server.page.PageResourceProvider;
 import org.bonitasoft.console.common.server.page.ResourceRenderer;
+import org.bonitasoft.console.common.server.page.extension.PageResourceProviderImpl;
 import org.bonitasoft.console.common.server.utils.BonitaHomeFolderAccessor;
 import org.bonitasoft.engine.business.application.ApplicationPageNotFoundException;
 import org.bonitasoft.engine.exception.BonitaException;
@@ -61,6 +61,12 @@ public class ApplicationRouter {
             final ParsedRequest parsedRequest, final List<String> pathSegments) throws IOException,
             ApplicationPageNotFoundException, InstantiationException, IllegalAccessException, BonitaException, PageNotFoundException, CreationException {
         final ApplicationModel application = applicationModelFactory.createApplicationModel(parsedRequest.getApplicationName());
+
+        if (!application.hasProfileMapped()) {
+            hsResponse.sendError(HttpServletResponse.SC_NOT_FOUND, "No profile mapped to living application");
+            return;
+        }
+
         //If no page name, redirect to Home page
         if (parsedRequest.getPageToken() == null) {
             hsResponse.sendRedirect(application.getApplicationHomePage());
@@ -91,7 +97,7 @@ public class ApplicationRouter {
             final ApplicationModel application, final APISession apiSession, final BonitaHomeFolderAccessor bonitaHomeFolderAccessor) throws IOException,
             BonitaException {
         final String pageName = getPageName(pathSegments, application);
-        final PageResourceProvider pageResourceProvider = pageRenderer.getPageResourceProvider(pageName, apiSession.getTenantId());
+        final PageResourceProviderImpl pageResourceProvider = pageRenderer.getPageResourceProvider(pageName, apiSession.getTenantId());
         final File resourceFile = new File(pageResourceProvider.getPageDirectory(), CustomPageService.RESOURCES_PROPERTY + File.separator
                 + getResourcePath(resourcePath, pathSegments.get(0), pathSegments.get(1)));
 

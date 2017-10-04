@@ -1,9 +1,11 @@
 package org.bonitasoft.console.common.server.page;
 
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,6 +17,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.bonitasoft.console.common.server.page.extension.PageResourceProviderImpl;
 import org.bonitasoft.console.common.server.utils.BonitaHomeFolderAccessor;
 import org.bonitasoft.engine.exception.NotFoundException;
 import org.bonitasoft.engine.exception.UnauthorizedAccessException;
@@ -132,9 +135,9 @@ public class PageServletTest {
         when(customPageService.getPage(apiSession, PAGE_ID)).thenReturn(page);
         when(page.getName()).thenReturn(pageName);
 
-        final PageResourceProvider pageResourceProvider = mock(PageResourceProvider.class);
+        final PageResourceProviderImpl pageResourceProvider = mock(PageResourceProviderImpl.class);
         final File resourceFile = mock(File.class);
-        when(pageResourceProvider.getResourceAsFile("resources/path/of/resource.css")).thenReturn(resourceFile);
+        when(pageResourceProvider.getResourceAsFile("resources" +File.separator + "path/of/resource.css")).thenReturn(resourceFile);
         when(pageRenderer.getPageResourceProvider(PAGE_ID, apiSession)).thenReturn(pageResourceProvider);
         when(bonitaHomeFolderAccessor.isInFolder(resourceFile, null)).thenReturn(true);
 
@@ -160,14 +163,14 @@ public class PageServletTest {
     }
 
     @Test
-    public void should_get_not_found_when_empty_mapping() throws Exception {
+    public void should_not_get_not_found_when_empty_mapping() throws Exception {
         when(hsRequest.getPathInfo()).thenReturn("/process/processName/processVersion/content/");
         final PageReference pageReference = new PageReference(null, null);
         doReturn(pageReference).when(pageMappingService).getPage(hsRequest, apiSession, "process/processName/processVersion", locale, true);
 
         pageServlet.service(hsRequest, hsResponse);
 
-        verify(hsResponse, times(1)).sendError(404, "Form mapping not found");
+        verify(hsResponse, never()).sendError(anyInt(), anyString());
     }
 
     @Test
@@ -227,5 +230,14 @@ public class PageServletTest {
         pageServlet.service(hsRequest, hsResponse);
 
         verify(hsRequest, times(1)).getRequestDispatcher("/API/bpm/process/1");
+    }
+
+    @Test
+    public void should_return_200_when_THEME_call() throws Exception {
+        when(hsRequest.getPathInfo()).thenReturn("/resource/process/Test/1.0/theme/theme.css");
+
+        pageServlet.service(hsRequest, hsResponse);
+
+        verify(hsRequest, never()).getRequestDispatcher(anyString());
     }
 }

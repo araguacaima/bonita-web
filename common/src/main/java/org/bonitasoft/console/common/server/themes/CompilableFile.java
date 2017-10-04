@@ -16,7 +16,12 @@
  */
 package org.bonitasoft.console.common.server.themes;
 
+import static java.lang.String.format;
+
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.util.logging.Logger;
 
 import org.bonitasoft.console.common.server.themes.exception.LessCompilationException;
 import org.lesscss.LessCompiler;
@@ -24,27 +29,34 @@ import org.lesscss.LessException;
 
 public class CompilableFile {
 
-    private String input;
+    private static final Logger LOGGER = Logger.getLogger(CompilableFile.class.getName());
 
-    private String output;
+    private final String input;
 
-    public static final CompilableFile[] ALWAYS_COMPILED_FILES = new CompilableFile[] {
+    private final String output;
+
+    public static final CompilableFile[] ALWAYS_COMPILED_FILES = new CompilableFile[]{
             new CompilableFile("skin/bootstrap/portal/main.less", "bonita-skin.css"),
     };
 
-    public CompilableFile(String input, String output) {
+    public CompilableFile(final String input, final String output) {
         this.input = input;
         this.output = output;
     }
 
-    public byte[] compile(ThemeArchive.ThemeModifier modifier) {
+    public byte[] compile(final ThemeArchive.ThemeModifier modifier) {
+        final LessCompiler lessCompiler = new LessCompiler();
+        lessCompiler.setEncoding("UTF-8");
+        File file = modifier.resolve(input);
+        if (!Files.exists(file.toPath())) {
+            LOGGER.warning(format("Theme compilation failure. File <%s> not found", file));
+            return new byte[0];
+        }
         try {
-            byte[] compilation = new LessCompiler().compile(modifier.resolve(input)).getBytes();
+            final byte[] compilation = lessCompiler.compile(file).getBytes("UTF-8");
             modifier.add(output, compilation);
             return compilation;
-        } catch (LessException e) {
-            throw new LessCompilationException("Failed to compile " + input, e);
-        } catch (IOException e) {
+        } catch (final LessException | IOException e) {
             throw new LessCompilationException("Failed to compile " + input, e);
         }
     }
